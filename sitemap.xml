@@ -37,14 +37,14 @@
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/tree-ensemble-importance/</loc>
+    <loc>http://xudongyang.coding.me/trie/</loc>
     
     <lastmod>2020-12-04</lastmod>
     
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/trie/</loc>
+    <loc>http://xudongyang.coding.me/tree-ensemble-importance/</loc>
     
     <lastmod>2020-12-04</lastmod>
     
@@ -198,14 +198,14 @@
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/item-pop-score/</loc>
+    <loc>http://xudongyang.coding.me/jvm-class-loader/</loc>
     
     <lastmod>2020-12-04</lastmod>
     
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/jvm-class-loader/</loc>
+    <loc>http://xudongyang.coding.me/item-pop-score/</loc>
     
     <lastmod>2020-12-04</lastmod>
     
@@ -515,13 +515,6 @@
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/tags/GBDT/</loc>
-    <lastmod>2020-12-04</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>http://xudongyang.coding.me/tags/JVM/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
@@ -536,6 +529,13 @@
   </url>
   
   <url>
+    <loc>http://xudongyang.coding.me/tags/GBDT/</loc>
+    <lastmod>2020-12-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>http://xudongyang.coding.me/tags/sklearn/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
@@ -544,6 +544,27 @@
   
   <url>
     <loc>http://xudongyang.coding.me/tags/mathjax/</loc>
+    <lastmod>2020-12-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/tags/%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A/</loc>
+    <lastmod>2020-12-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/tags/query%E6%94%B9%E5%86%99/</loc>
+    <lastmod>2020-12-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/tags/%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -572,27 +593,6 @@
   
   <url>
     <loc>http://xudongyang.coding.me/tags/%E7%9B%B8%E4%BC%BC%E6%80%A7/</loc>
-    <lastmod>2020-12-04</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/tags/%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A/</loc>
-    <lastmod>2020-12-04</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/tags/query%E6%94%B9%E5%86%99/</loc>
-    <lastmod>2020-12-04</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/tags/%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -697,6 +697,13 @@
   </url>
   
   <url>
+    <loc>http://xudongyang.coding.me/tags/trie/</loc>
+    <lastmod>2020-12-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>http://xudongyang.coding.me/tags/%E9%9B%86%E6%88%90%E5%AD%A6%E4%B9%A0/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
@@ -719,13 +726,6 @@
   
   <url>
     <loc>http://xudongyang.coding.me/tags/UTF-8/</loc>
-    <lastmod>2020-12-04</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/tags/trie/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -909,14 +909,14 @@
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/c/</loc>
+    <loc>http://xudongyang.coding.me/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/python/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/python/</loc>
+    <loc>http://xudongyang.coding.me/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/c/</loc>
     <lastmod>2020-12-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
