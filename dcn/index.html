@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Deep &amp; Cross Network(DCN)在 2017 年由 google 和 Stanford 共同发表的一篇论文中被提出，类似于Wide &amp; Deep Network(WDL)，是用负杂网络预估CTR的一种方法。 特征工程一直是许多预测模型成功的关键。许多有效的特征都来自于原始特征的交叉组合。在WDL中，wide侧的交叉组合特征依然需要依靠hand-craft来完成。而">
+<meta property="og:type" content="article">
+<meta property="og:title" content="距离玩转企业级DCN(Deep &amp; Cross Network)模型，你只差一步">
+<meta property="og:url" content="http://xudongyang.coding.me/dcn/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="Deep &amp; Cross Network(DCN)在 2017 年由 google 和 Stanford 共同发表的一篇论文中被提出，类似于Wide &amp; Deep Network(WDL)，是用负杂网络预估CTR的一种方法。 特征工程一直是许多预测模型成功的关键。许多有效的特征都来自于原始特征的交叉组合。在WDL中，wide侧的交叉组合特征依然需要依靠hand-craft来完成。而">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://xudongyang.coding.me/dcn/dcn.png">
+<meta property="og:image" content="http://xudongyang.coding.me/dcn/cross_layer.jpg">
+<meta property="og:image" content="http://xudongyang.coding.me/dcn/dcn_tensor.png">
+<meta property="article:published_time" content="2018-08-30T08:20:44.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.859Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="深度学习">
+<meta property="article:tag" content="DCN">
+<meta property="article:tag" content="CTR预估">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://xudongyang.coding.me/dcn/dcn.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/dcn/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>距离玩转企业级DCN(Deep & Cross Network)模型，你只差一步 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/dcn/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          距离玩转企业级DCN(Deep & Cross Network)模型，你只差一步
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-08-30 16:20:44" itemprop="dateCreated datePublished" datetime="2018-08-30T16:20:44+08:00">2018-08-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">深度学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/dcn/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/dcn/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Deep &amp; Cross Network(DCN)在 2017 年由 google 和 Stanford 共同发表的一篇论文中被提出，类似于Wide &amp; Deep Network(WDL)，是用负杂网络预估CTR的一种方法。</p>
+<p>特征工程一直是许多预测模型成功的关键。许多有效的特征都来自于原始特征的交叉组合。在WDL中，wide侧的交叉组合特征依然需要依靠hand-craft来完成。而DCN能对sparse和dense的输入自动学习特征交叉，可以有效地捕获有限阶（bounded degrees）上的有效特征交叉，无需人工特征工程或暴力搜索（exhaustive searching），并且计算代价较低。</p>
+<p>本文在详细介绍Deep &amp; Cross Network网络结构的基础上，给出了高效实现DCN模型的tensorflow代码，主要点出了网络上一些主流实现中常犯的错误，让你真正能够在企业级的生产环境中玩转DCN模型。<br><a id="more"></a></p>
+<h2 id="DCN网络结构"><a href="#DCN网络结构" class="headerlink" title="DCN网络结构"></a>DCN网络结构</h2><p>DCN模型以一个嵌入和堆叠层(embedding and stacking layer)开始，接着并列连一个cross network和一个deep network，接着通过一个combination layer将两个network的输出进行组合。</p>
+<p><img src="/dcn/dcn.png" alt></p>
+<h3 id="嵌入和堆叠层"><a href="#嵌入和堆叠层" class="headerlink" title="嵌入和堆叠层"></a>嵌入和堆叠层</h3><p>考虑具有稀疏和稠密特征的输入数据。在网络规模推荐系统的CTR预测任务中，输入主要是分类特征，如“country=usa”。这些特征通常是编码为独热向量如<code>[0,1,0]</code>；然而，这通常会产生超高维度的特征空间。</p>
+<p>为了减少维数，我们采用嵌入过程将这些二进制特征转换成实数值的稠密向量（通常称为嵌入向量）：</p>
+<script type="math/tex; mode=display">x_{embed,i} =W_{embed,i}x_i</script><p>其中$x_{embed,i}$是embedding vector，$x_i$是第$i$个category的二元输入，$W_{embed,i} \in R^{n_e \times n_v}$是对应的embedding matrix，会与网络中的其它参数一起进行优化，$n_e$,$n_v$分别是embedding size和vocabulary size。</p>
+<p>最后，我们将嵌入向量与归一化稠密特征xdense叠加起来形成一个向量：<script type="math/tex">x_0 = [ x_{embed,1}^T, ..., X_{embed,k}^T, X_{dense}^T]。</script></p>
+<p>这一部分在tensorflow中，使用<code>tf.feature_column</code>API可以很容易实现，大致代码结构如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">embed0 = tf.feature_column.embedding_column(...)</span><br><span class="line">...</span><br><span class="line">dense0 = tf.feature_column.indicator_column(...)</span><br><span class="line">dense1 = tf.feature_column.numeric_column(...)</span><br><span class="line">...</span><br><span class="line">columns = [embed0, ..., dense0, dense1, ...]</span><br><span class="line">x0 = tf.feature_column.input_layer(features, feature_columns)</span><br></pre></td></tr></table></figure></p>
+<h2 id="交叉网络"><a href="#交叉网络" class="headerlink" title="交叉网络"></a>交叉网络</h2><p>交叉网络的核心思想是以有效的方式应用显式特征交叉。交叉网络由交叉层组成，每个层具有以下公式：</p>
+<script type="math/tex; mode=display">x_{l+1} = x_0 x_l^T w_l + b_l + x_l = f(x_l, w_l, b_l) + x_l</script><p>其中:</p>
+<ul>
+<li>$x_l,x_{l+1}$是列向量（column vectors），分别表示来自第$l$层和第($l+1$)层cross layers的输出；</li>
+<li>$w_l, b_l \in R^d$是第$l$层layer的weight和bias参数。</li>
+</ul>
+<p>在完成一个特征交叉f后，每个cross layer会将它的输入加回去，对应的mapping function $f：R^d \rightarrow R^d$，刚好等于残差$x_{l+1} - x_l$，这里借鉴了残差网络的思想。</p>
+<p><img src="/dcn/cross_layer.jpg" alt></p>
+<p><strong>特征的高阶交叉（high-degree interaction）</strong>：cross network的独特结构使得交叉特征的阶（the degress of cross features）随着layer的深度而增长。对于第$l$层layer，它的最高多项式阶（在输入$x_0$上）是$l+1$。 实际上，cross network由这些交叉项$x_1^{\alpha_1} x_2^{\alpha_2} … x_d^{\alpha_d}$组成，对应的阶从$1$到$l+1$。</p>
+<p><strong>复杂度分析</strong>：假设$L_c$表示cross layers的数目，$d$表示输入$x_0$的维度。那么，在该cross network中涉及的参数数目为：$d \times L_c \times 2$。</p>
+<p>一个cross network的时间和空间复杂度对于输入维度是线性关系。因而，比起它的deep部分，一个cross network引入的复杂度微不足道，DCN的整体复杂度与传统的DNN在同一水平线上。如此高效（efficiency）是受益于$x_0 x_l^T$的rank-one特性(两个向量的叉积)，它可以使我们生成所有的交叉项，无需计算或存储整个matrix。</p>
+<p>搜索了网上主流的实现cross layer的方法，代码如下:<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">cross_layer</span>(<span class="params">x0, x, name</span>):</span></span><br><span class="line">  <span class="keyword">with</span> tf.variable_scope(name):</span><br><span class="line">    input_dim = x0.get_shape().as_list()[<span class="number">1</span>]</span><br><span class="line">    w = tf.get_variable(<span class="string">&quot;weight&quot;</span>, [input_dim], initializer=tf.truncated_normal_initializer(stddev=<span class="number">0.01</span>))</span><br><span class="line">    b = tf.get_variable(<span class="string">&quot;bias&quot;</span>, [input_dim], initializer=tf.truncated_normal_initializer(stddev=<span class="number">0.01</span>))</span><br><span class="line">    xx0 = tf.expand_dims(x0, -<span class="number">1</span>)  <span class="comment"># shape &lt;?, d, 1&gt;</span></span><br><span class="line">    xx = tf.expand_dims(x, -<span class="number">1</span>)  <span class="comment"># shape &lt;?, d, 1&gt;</span></span><br><span class="line">    mat = tf.matmul(xx0, xx, transpose_b=<span class="literal">True</span>)  <span class="comment"># shape &lt;?, d, d&gt;</span></span><br><span class="line">    <span class="keyword">return</span> tf.tensordot(mat, w, <span class="number">1</span>) + b + x  <span class="comment"># shape &lt;?, d&gt;</span></span><br></pre></td></tr></table></figure><br>这种方法在逻辑上没有什么问题，但实际上却是<strong>非常消耗计算和存储资源</strong>的，原因在于显式地计算$x_0 x_l^T$需要非常大的内存空间来存储临时计算结果。我们来计算一下，一个cross layer仅仅是计算$x_0 x_l^T$这一个操作就需要消耗 $batch\_size \times d \times d \times 4$ 字节的内存（一个浮点数占4个字节）。在企业级的模型中，$d$通常是几千甚至几万的量级，假设$d=1k$，则需要$batch\_size \times 4M$的存储空间，这通常情况下已经是G级别的大小了，何况我们仅仅计算了一个Layer，别忘了我们总共有$L_c$个cross layer。另外，该操作的结果（一个矩阵）再和$w$向量相乘时也是非常消耗计算资源的。即使你在离线训练时通过减少cross layer的个数，减小batch_size等手段完成了模型的训练，在模型部署中线上之后，线性的打分系统依然要面临Out of Memory的风险，因为线上预测我们总是希望一次请求尽可能返回多条记录的预测分数，否则要么是影响全局的效果，要么是需要更多的请求次数，从而面临巨大的性能压力。</p>
+<p>正确的实现方式不是先计算$x_0 x_l^T$，而是先计算$x_l^T w$，因为$x_l^T w$的计算结果是一个标量，几乎不占用存储空间。这两种方法的计算结果是一致的，因为矩阵乘法是满足结合律的： <code>(AB)C=A(BC)</code>。高效的实现代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">cross_layer2</span>(<span class="params">x0, x, name</span>):</span></span><br><span class="line">  <span class="keyword">with</span> tf.variable_scope(name):</span><br><span class="line">    input_dim = x0.get_shape().as_list()[<span class="number">1</span>]</span><br><span class="line">    w = tf.get_variable(<span class="string">&quot;weight&quot;</span>, [input_dim], initializer=tf.truncated_normal_initializer(stddev=<span class="number">0.01</span>))</span><br><span class="line">    b = tf.get_variable(<span class="string">&quot;bias&quot;</span>, [input_dim], initializer=tf.truncated_normal_initializer(stddev=<span class="number">0.01</span>))</span><br><span class="line">    xb = tf.tensordot(tf.reshape(x, [-<span class="number">1</span>, <span class="number">1</span>, input_dim]), w, <span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> x0 * xb + b + x</span><br></pre></td></tr></table></figure></p>
+<p>在上面的实现中，我们使用了<code>tf.reshape</code>操作实现了$x_l$的转置，因为$x_l$实际上是一个向量，并不是一个矩阵，因此这种方法是可行的。下面给出构建整个交叉网络的tensorflow代码：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">build_cross_layers</span>(<span class="params">x0, params</span>):</span></span><br><span class="line">  num_layers = params[<span class="string">&#x27;num_cross_layers&#x27;</span>]</span><br><span class="line">  x = x0</span><br><span class="line">  <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_layers):</span><br><span class="line">    x = cross_layer2(x0, x, <span class="string">&#x27;cross_&#123;&#125;&#x27;</span>.<span class="built_in">format</span>(i))</span><br><span class="line">  <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure></p>
+<p>对于cross layer可以换一种理解方式。假设$\tilde{x} \in R^d$是一个cross layer的输入，cross layer首先构建$d^2$个关于$x_i \tilde{x}_j$的pairwise交叉，接着以一种内存高效的方式将它们投影到维度$d$上。如果采用全连接Layer那样直接投影的方式会带来3次方的开销。Cross layer提供了一种有效的解决方式，将开销减小到维度$d$的量级上：考虑到$x_p = x_0 \tilde{x}^T w$等价于：</p>
+<script type="math/tex; mode=display">x_p^T = [x_1\tilde{x}_1 ... x_1\tilde{x}_d ... x_d\tilde{x}_1 ... x_d\tilde{x}_d] \left[
+\begin{array}{ccc}
+  w&0&...&0\\
+  0&w&...&0\\
+  \vdots&\vdots&\ddots&\vdots\\
+  0&0&...&w
+\end{array}
+\right]</script><p>其中，行向量包含了所有$d^2$个关于$x_i \tilde{x}_j$的pairwise交叉，投影矩阵具有一个块对角化结构，其中$w \in R^d$是一个列向量。</p>
+<h2 id="深度网络"><a href="#深度网络" class="headerlink" title="深度网络"></a>深度网络</h2><p>交叉网络的参数数目少，从而限制了模型的能力（capacity）。为了捕获高阶非线性交叉，我们平行引入了一个深度网络。</p>
+<p>深度网络就是一个全连接的前馈神经网络，每个深度层具有如下公式：<script type="math/tex">h_{l+1} = f(W_l h_l + b_l)</script><br>其中：</p>
+<ul>
+<li>$h_l \in R^{n_l}, h_{l+1} \in R^{n_{l+1}}$别是第$l$层和第($l+1$)层hidden layer；</li>
+<li>$W_l \in R^{n_{l+1} \times n_l}, b_l \in R^{n_{l+1}}$第$l$个deep layer的参数；</li>
+<li>$f(⋅)$是ReLU function。</li>
+</ul>
+<p><strong>复杂度分析</strong>：出于简洁性，我们假设所有的deep layers具有相同的size。假设$L_d$表示deep layers的数目，m表示deep layer的size。那么，在该deep network中的参数的数目为：</p>
+<script type="math/tex; mode=display">d×m+m+(m2+m)×(L_d−1)</script><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">build_deep_layers</span>(<span class="params">x0, params</span>):</span></span><br><span class="line">  <span class="comment"># Build the hidden layers, sized according to the &#x27;hidden_units&#x27; param.</span></span><br><span class="line">  net = x0</span><br><span class="line">  <span class="keyword">for</span> units <span class="keyword">in</span> params[<span class="string">&#x27;hidden_units&#x27;</span>]:</span><br><span class="line">    net = tf.layers.dense(net, units=units, activation=tf.nn.relu)</span><br><span class="line">  <span class="keyword">return</span> net</span><br></pre></td></tr></table></figure>
+<h2 id="Combination-Layer"><a href="#Combination-Layer" class="headerlink" title="Combination Layer"></a>Combination Layer</h2><p>最后，将两个network的输出进行拼接（concatenate），然后将该拼接向量（concatenated vector）喂给一个标准的逻辑回归模型。<script type="math/tex">p = \sigma ( [x_{L_1}^T, h_{L_2}^T] w_{logits})</script></p>
+<p>类似于WDL模型，我们对两个network进行jointly train，在训练期间，每个独立的network会察觉到另一个。下面给出整个模型的实现代码：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">dcn_model_fn</span>(<span class="params">features, labels, mode, params</span>):</span></span><br><span class="line">  x0 = tf.feature_column.input_layer(features, params[<span class="string">&#x27;feature_columns&#x27;</span>])</span><br><span class="line">  last_deep_layer = build_deep_layers(x0, params)</span><br><span class="line">  last_cross_layer = build_cross_layers(x0, params)</span><br><span class="line">  last_layer = tf.concat([last_cross_layer, last_deep_layer], <span class="number">1</span>)</span><br><span class="line">  my_head = tf.contrib.estimator.binary_classification_head(thresholds=[<span class="number">0.5</span>])</span><br><span class="line">  logits = tf.layers.dense(last_layer, units=my_head.logits_dimension)</span><br><span class="line">  optimizer = tf.train.AdagradOptimizer(learning_rate=params[<span class="string">&#x27;learning_rate&#x27;</span>])</span><br><span class="line">  <span class="keyword">return</span> my_head.create_estimator_spec(</span><br><span class="line">    features=features,</span><br><span class="line">    mode=mode,</span><br><span class="line">    labels=labels,</span><br><span class="line">    logits=logits,</span><br><span class="line">    train_op_fn=<span class="keyword">lambda</span> loss: optimizer.minimize(loss, global_step=tf.train.get_global_step())</span><br><span class="line">  )</span><br></pre></td></tr></table></figure>
+<p><img src="/dcn/dcn_tensor.png" alt></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>DCN主要有以下几点贡献：</p>
+<ul>
+<li>提出一种新型的交叉网络结构，可以用来提取交叉组合特征，并不需要人为设计的特征工程；</li>
+<li>这种网络结构足够简单同时也很有效，可以获得随网络层数增加而增加的多项式阶（polynomial degree）交叉特征；</li>
+<li>十分节约内存（依赖于正确地实现），并且易于使用；</li>
+<li>实验结果表明，DCN相比于其他模型有更出色的效果，与DNN模型相比，较少的参数却取得了较好的效果。</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://github.com/yangxudong/deeplearning/tree/master/DCN">源代码Github</a></p>
+<h2 id="论文阅读"><a href="#论文阅读" class="headerlink" title="论文阅读"></a>论文阅读</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1708.05123.pdf">Deep &amp; Cross Network for Ad Click Prediction</a></p>
+<h2 id="推荐阅读"><a href="#推荐阅读" class="headerlink" title="推荐阅读"></a>推荐阅读</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/35465875">主流CTR预估模型的演化及对比</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/37562283">CVR预估的新思路：完整空间多任务模型</a></li>
+<li><a target="_blank" rel="noopener" href="https://yangxudong.github.io">个人博客</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" rel="tag"># 深度学习</a>
+              <a href="/tags/DCN/" rel="tag"># DCN</a>
+              <a href="/tags/CTR%E9%A2%84%E4%BC%B0/" rel="tag"># CTR预估</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/esmm-1/" rel="prev" title="构建分布式Tensorflow模型系列之CVR预估案例ESMM模型">
+      <i class="fa fa-chevron-left"></i> 构建分布式Tensorflow模型系列之CVR预估案例ESMM模型
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/xdeepfm/" rel="next" title="深度CTR预估模型中的特征自动组合机制演化简史">
+      深度CTR预估模型中的特征自动组合机制演化简史 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#DCN%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">DCN网络结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B5%8C%E5%85%A5%E5%92%8C%E5%A0%86%E5%8F%A0%E5%B1%82"><span class="nav-number">1.1.</span> <span class="nav-text">嵌入和堆叠层</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%A4%E5%8F%89%E7%BD%91%E7%BB%9C"><span class="nav-number">2.</span> <span class="nav-text">交叉网络</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B7%B1%E5%BA%A6%E7%BD%91%E7%BB%9C"><span class="nav-number">3.</span> <span class="nav-text">深度网络</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Combination-Layer"><span class="nav-number">4.</span> <span class="nav-text">Combination Layer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BA%E6%96%87%E9%98%85%E8%AF%BB"><span class="nav-number">6.</span> <span class="nav-text">论文阅读</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8E%A8%E8%8D%90%E9%98%85%E8%AF%BB"><span class="nav-number">7.</span> <span class="nav-text">推荐阅读</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="深度学习语义相似度模型旨在学习输入$x$的一个好的特征表示，使得该特征表示能够捕捉到输入的本质结构，且能够促进后续的学习任务，如分类或聚类任务。一般地，我们用深度网络的某个中间层输出作为学习到的特征表示，基于该特征表示可以较方便地得到后续的分类结果，过程如下式所示，其中 $z&#x3D;f(x,\theta) \in R^d$ 即为学习到的特征表示。 \require{AMScd} \begin{CD} x">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深度学习语义相似度系列：表示学习">
+<meta property="og:url" content="http://xudongyang.coding.me/represent-learning/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="深度学习语义相似度模型旨在学习输入$x$的一个好的特征表示，使得该特征表示能够捕捉到输入的本质结构，且能够促进后续的学习任务，如分类或聚类任务。一般地，我们用深度网络的某个中间层输出作为学习到的特征表示，基于该特征表示可以较方便地得到后续的分类结果，过程如下式所示，其中 $z&#x3D;f(x,\theta) \in R^d$ 即为学习到的特征表示。 \require{AMScd} \begin{CD} x">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://pic4.zhimg.com/80/v2-032618a79106f1668b4013908cefbd4f_1440w.jpg">
+<meta property="article:published_time" content="2020-12-03T12:45:20.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.931Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="语义相似度">
+<meta property="article:tag" content="NLP">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic4.zhimg.com/80/v2-032618a79106f1668b4013908cefbd4f_1440w.jpg">
+
+<link rel="canonical" href="http://xudongyang.coding.me/represent-learning/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>深度学习语义相似度系列：表示学习 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/represent-learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          深度学习语义相似度系列：表示学习
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-12-03 20:45:20" itemprop="dateCreated datePublished" datetime="2020-12-03T20:45:20+08:00">2020-12-03</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">深度学习</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/represent-learning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/represent-learning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>深度学习语义相似度模型旨在学习输入$x$的一个好的特征表示，使得该特征表示能够捕捉到输入的本质结构，且能够促进后续的学习任务，如分类或聚类任务。一般地，我们用深度网络的某个中间层输出作为学习到的特征表示，基于该特征表示可以较方便地得到后续的分类结果，过程如下式所示，其中 $z=f(x,\theta) \in R^d$ 即为学习到的特征表示。</p>
+<script type="math/tex; mode=display">\require{AMScd}
+\begin{CD}
+x @>f(x,\theta)>> z(\theta) @>g(z)>> y
+\end{CD}</script><p>那么什么样的特征表示才是一个好的表示呢？其实，这个问题是和具体任务相关的，不同任务对特征表示的要求是不一样的，因而，我们不能期待在一个任务中有效的特征表示在另一个不同领域的任务上也同样有效。抛开具体任务不谈，原则上，我们期望特征表示既具有一定的信息量（informative），能够充分还原原始输入；又具有一定的区分性（discriminative），能够有效区别开不同类别的输入。从信息论的角度来说，期望能够在最小化原始输入与特征表示的互信息的同时最大化特征表示与目标类别的互信息，形式化如下：</p>
+<script type="math/tex; mode=display">max_{\theta \in \Theta} I(z(\theta), y)- \beta I(x, z(\theta))</script><p>其中，$\beta&gt;0$，用来调节信息量与区分性的权重。</p>
+<a id="more"></a>
+<h2 id="1-语义相似度-vs-类别相似度"><a href="#1-语义相似度-vs-类别相似度" class="headerlink" title="1. 语义相似度 vs 类别相似度"></a>1. 语义相似度 vs 类别相似度</h2><p>首先要解释一下标签相似度与语义相似度的区别。假设每段文本都表达了多重语义，那么语义相似度模型会判定两段语义重合度较高的文本是相似的，而标签相似度模型则要关注两段文本是否都提及了某种特定类型的语义，而不在乎这两段文本整体的语义重合度。举例说明如下：</p>
+<ol>
+<li>手机挂九游挂饰吊坠微信玉石玛瑙指环扣女款创意炸金花链短吊环</li>
+<li>玉石菩提手机扣指环挂绳短款手机挂饰挂件吊坠手机链短男女指环扣</li>
+<li>炸金花透视辅助 详情私聊</li>
+<li>c 美诗美童田慧新款炸金花背心透视成人男款拉丁练习舞服 zq n01</li>
+</ol>
+<p>语义相似度模型可能会判定文本1与文本2更相似，而标签相似度模型则会判定文本1与文本3更相似，因为它们有相同的风险标签：作弊造假。同样，标签相似度模型也会判定文本1和文本4是相似的，而语义相似度模型则可能会判定它俩不相似。</p>
+<p>我们最终的目标是学习一个能够表示文本标签信息的embedding向量。学习到的向量空间需要能够很好地区分不同的风险类别，也就是说，相同类别的风险文本映射到向量空间中相近的位置，不同类别的风险在向量空间中的距离较远。</p>
+<p>语义相似度关注整体语义，要求学习到的embedding向量能够尽可能还原原始输入；而标签相似度仅关注局部语义，既是否在预定义的标签维度上相似。定位不同，则解题思路也不同。语义相似度对应representation learning，而标签相似度对应的解决方案是metric learning。虽然两种技术思路有很大比例的交叉重叠，但是细微的不同可能会对业务效果产生蝴蝶效应般的影响。在风控领域，我们通常不管监管对象表达了多少正常的语义，我们只对监管对象是否触发了某种类型的违规敏感。我们的模型需要识别出隐藏在多种正常语义之下的违规风险语义。</p>
+<h2 id="2-类别标签-vs-成对标签"><a href="#2-类别标签-vs-成对标签" class="headerlink" title="2. 类别标签 vs 成对标签"></a>2. 类别标签 vs 成对标签</h2><p>提供给相似度模型学习的样本标签通常有两种类型，分别是成对标签（pair-wise labels）与类别标签（class-level labels）。例如，做人脸识别时，若样本是一对人脸图像，标签为是否为同一人的0/1标签，则这样的标签称之为成对标签。广义上讲，三元组、四元组标签都属于成对标签。同样是人脸识别场景，若样本为一个人脸图像，标签为该人脸的id（建模为一个超级大规模的分类模型），则这样的标签体系称之为类别标签。</p>
+<p>通常情况下，类别标签使用分类损失函数，如softmax cross entropy loss或其变种，来优化样本特征表示与类别权重向量之间的相似度。成对标签使用某种度量损失函数来优化样本之间的相似度。具体可使用的损失函数可以参考这篇文章《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/82199561">深度度量学习中的损失函数</a>》。这两种损失函数本质上并没有根本区别，它们都在尝试最小化类间相似度（between-class similarity）的同时最大化类内相似度(within-class similarity)。</p>
+<h2 id="3-Softmax-loss-vs-Triplet-loss"><a href="#3-Softmax-loss-vs-Triplet-loss" class="headerlink" title="3. Softmax loss vs Triplet loss"></a>3. Softmax loss vs Triplet loss</h2><p>损失函数指导模型如何学习。Triplet loss是Metric Learning领域经典的损失函数，最初用在人脸识别领域。该loss函数要求样本由三元组(anchor, positive, negative)组成，其中positive的样本与anchor样本有相同的类标签，且与negative的样本有不同的类标签。如下图所示：</p>
+<p><img src="https://pic4.zhimg.com/80/v2-032618a79106f1668b4013908cefbd4f_1440w.jpg" alt></p>
+<p>Triplet loss要求negative样本与anchor样本之间的距离比positive样本与anchor之间的距离至少大margin，定义如下：</p>
+<script type="math/tex; mode=display">\mathcal{L} = max(d(a, p) - d(a, n) + margin, 0)</script><p>最近的研究表明，通过为分类设计的softmax loss训练得到的embedding向量在需要计算样本距离的任务中表现也很好，例如可以用大规模softmax分类来训练人脸识别模型。进一步的研究表明，softmax loss与平滑版的triplet loss是等价的。网络最后一个全连接层的权重为每个类赋予了一个类中心embedding向量，而网络最后一个隐层的值即为样本的embedding向量。Softmax loss相当于是定义在（原始样本，样本类中心，另一个类的类中兴）三元组上的triplet loss，因此要求原始样本与其对应的类中心的距离比与另外任意一个类中心的距离都要小。要得到好的embedding表示，我的观察是softmax loss适用于类内方差较小且有大量类别的场景，比如人脸识别。然而，大规模softmax分类（如千万量级的类别）在工程实现上是非常困难的，受制于gpu显存大小的限制，需要实现数据并行加模型并行的分布式训练模型。相比softmax loss，triplet loss可以方便地训练大规模数据集，不受显存大小的限制；triplet loss的缺点是过于关注局部，导致对样本的构建要求很高且收敛时间长。</p>
+<h2 id="4-Circle-Loss"><a href="#4-Circle-Loss" class="headerlink" title="4. Circle Loss"></a>4. Circle Loss</h2><p>除了《深度度量学习中的损失函数》中提到的损失函数，还可以使用最近提出的circle loss，该损失函数在多个场景下被验证效果很好。</p>
+<p>大多数的损失函数，包括triplet loss 和softmax loss损失函数，都是使类间相似性 $s_n$ 和类内相似性 $s_p$ 嵌入到一个相似性对，并且去最小化$(s_n-s_p)$。这样的优化方式是不够灵活的，因为其对每一个单一相似性分数的惩罚强度是相等的。Circle loss提出如果一个相似性得分远离最优的中心，那么其应该被更多的关注(即惩罚)。基于这个目的，circle loss重新加权那些欠优化的相似性得分。</p>
+<p>Circle loss对类别标签和成对标签使用统一的视角。已知在特征空间的一个单个样例 $x$，假设有 $K$ 个类内相似性得分$ \{s_p^i\}(i=1,2,\cdots,K)$， $L$ 个类间相似性得分$ \{s_n^j\}(j=1,2,\cdots,L) $。</p>
+<p>一个统一视角的表示学习损失函数为</p>
+<script type="math/tex; mode=display">
+\begin{align*} L_{uni} &= log[1 + \sum_{i=1}^K \sum_{j=1}^L exp(\gamma(s_n^j - s_p^i + m))] \\ &= log[1+\sum_{j=1}^L exp(\gamma(s_n^j + m)) \sum_{i=1}^K exp(\gamma(- s_p^i))] \end{align*}</script><p>对上式简单的修改可以得到triplet loss和softmax loss。</p>
+<h3 id="自适应加权-Self-placed-Weighting"><a href="#自适应加权-Self-placed-Weighting" class="headerlink" title="自适应加权(Self-placed Weighting)"></a>自适应加权(Self-placed Weighting)</h3><p>考虑一种更灵活的优化策略去允许每个相似性得分根据其优化状态去选择优化权重。首先忽略掉公式[公式]中阈值(margin) [公式] ，将其转换为Circle loss:</p>
+<script type="math/tex; mode=display">\begin{align*} L_{circle} &= log[1 + \sum_{i=1}^K \sum_{j=1}^L exp(\gamma(\alpha_n^j s_n^j - \alpha_p^i s_p^i))] \\ &= log[1+\sum_{j=1}^L exp(\gamma\alpha_n^js_n^j) \sum_{i=1}^K exp(-\gamma \alpha_p^i s_p^i)] \end{align*}</script><p>在训练期间 $ (\alpha_n^j s_n^j - \alpha_p^i s_p^i) $ 反向传播时对 $s_n^j(s_p^i)$ 的梯度分别乘上 $\alpha_n(\alpha_p)$ 。假设 $s_p^i$ 最优的状态是$O_p$ ， $s_n^j$ 最优的状态是 $O_n$ ，其中( $O_n &lt; O_p$ )。当一个相似性分数远离他的最优点时(即 $s_n^j$ 远离 $O_n$, $s_p^i$ 远离$O_p$)，这时其应该获得更大的权重因子，以便于更好优化使相似性分数趋近于最优值。所以 $\alpha_n^j$ 和 $\alpha_p^i$ 定义为：</p>
+<script type="math/tex; mode=display">\begin{cases}  \alpha_p^i = [O_p-s_p^i]_+ \\ \alpha_n^j = [s_n^j - O_n]_+ \end{cases}</script><p>其中，$[\cdot]_+=max(0,\cdot)$，表示在0截断，确保函数值为非负数。</p>
+<p>Circle loss中的自适应加权，类似于focal loss。</p>
+<h3 id="类内和类间的阈值-With-in-class-and-Between-class-Margins"><a href="#类内和类间的阈值-With-in-class-and-Between-class-Margins" class="headerlink" title="类内和类间的阈值(With-in class and Between-class Margins)"></a>类内和类间的阈值(With-in class and Between-class Margins)</h3><p>在以往的损失函数中通过添加一个阈值 $m$ 去优化 $(s_n-s_p)$ ，因为 $s_n$ 和 $-s_p$ 是对称的，在 $s_n$ 处添加一个正的 $m$ 等价于在 $s_p$ 处添加一个负的 $m$。在Circle loss中 $s_n$ 和 $s_p$ 是不对称的。所以其对 $s_n$ 和 $s_p$ 分别需要一个阈值(margin)，用公式表示如下：</p>
+<script type="math/tex; mode=display">L_{circle}=log[1 + \sum_{j=1}^L exp(\gamma \alpha_n^j(s_n^j-\Delta_n)) \sum_{i=1}^K exp(-\gamma \alpha_p^i(s_p^i - \Delta_p))]</script><p>其中，$\Delta_n$和$\Delta_p$分别为类间和类内的阈值。</p>
+<p>为了减少超参数，设置 $ O_p=1+m, O_n=-m, \Delta_p=1-m, \Delta_n=m $。</p>
+<h2 id="5-总结"><a href="#5-总结" class="headerlink" title="5. 总结"></a>5. 总结</h2><p>本文总结了表示学习领域的一些基本概念和常用的损失函数。包括Circle loss在内的常用损失函数的源码可以关注微信工资号：“算法工程师的进阶之路”，回 复 “损失函数”获取。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E8%AF%AD%E4%B9%89%E7%9B%B8%E4%BC%BC%E5%BA%A6/" rel="tag"># 语义相似度</a>
+              <a href="/tags/NLP/" rel="tag"># NLP</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/dsmm/" rel="prev" title="深度学习语义相似度系列：Ranking Similarity">
+      <i class="fa fa-chevron-left"></i> 深度学习语义相似度系列：Ranking Similarity
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E8%AF%AD%E4%B9%89%E7%9B%B8%E4%BC%BC%E5%BA%A6-vs-%E7%B1%BB%E5%88%AB%E7%9B%B8%E4%BC%BC%E5%BA%A6"><span class="nav-number">1.</span> <span class="nav-text">1. 语义相似度 vs 类别相似度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E7%B1%BB%E5%88%AB%E6%A0%87%E7%AD%BE-vs-%E6%88%90%E5%AF%B9%E6%A0%87%E7%AD%BE"><span class="nav-number">2.</span> <span class="nav-text">2. 类别标签 vs 成对标签</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Softmax-loss-vs-Triplet-loss"><span class="nav-number">3.</span> <span class="nav-text">3. Softmax loss vs Triplet loss</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Circle-Loss"><span class="nav-number">4.</span> <span class="nav-text">4. Circle Loss</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%87%AA%E9%80%82%E5%BA%94%E5%8A%A0%E6%9D%83-Self-placed-Weighting"><span class="nav-number">4.1.</span> <span class="nav-text">自适应加权(Self-placed Weighting)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E5%86%85%E5%92%8C%E7%B1%BB%E9%97%B4%E7%9A%84%E9%98%88%E5%80%BC-With-in-class-and-Between-class-Margins"><span class="nav-number">4.2.</span> <span class="nav-text">类内和类间的阈值(With-in class and Between-class Margins)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E6%80%BB%E7%BB%93"><span class="nav-number">5.</span> <span class="nav-text">5. 总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

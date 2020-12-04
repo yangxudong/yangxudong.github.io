@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="本文主要内容来自于斯坦福大学的Introduction to Computational Advertising课程，重点介绍了搜索广告相关的一部分内容。 计算广告(Computational Advertising)计算广告是计算机科学中出现的一个相对较新的子科学领域，利用算法来给用户展示出最佳的广告。它集合了下面的技术于一身：  信息检索 (Information retrieval) 大规模">
+<meta property="og:type" content="article">
+<meta property="og:title" content="搜索广告(sponsored-search)概述">
+<meta property="og:url" content="http://xudongyang.coding.me/sponsored-search/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="本文主要内容来自于斯坦福大学的Introduction to Computational Advertising课程，重点介绍了搜索广告相关的一部分内容。 计算广告(Computational Advertising)计算广告是计算机科学中出现的一个相对较新的子科学领域，利用算法来给用户展示出最佳的广告。它集合了下面的技术于一身：  信息检索 (Information retrieval) 大规模">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2017-05-10T16:49:53.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.939Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="计算广告">
+<meta property="article:tag" content="搜索广告">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://xudongyang.coding.me/sponsored-search/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>搜索广告(sponsored-search)概述 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/sponsored-search/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          搜索广告(sponsored-search)概述
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-05-11 00:49:53" itemprop="dateCreated datePublished" datetime="2017-05-11T00:49:53+08:00">2017-05-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">计算广告</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/sponsored-search/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/sponsored-search/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文主要内容来自于斯坦福大学的Introduction to Computational Advertising课程，重点介绍了搜索广告相关的一部分内容。</p>
+<h1 id="计算广告-Computational-Advertising"><a href="#计算广告-Computational-Advertising" class="headerlink" title="计算广告(Computational Advertising)"></a>计算广告(Computational Advertising)</h1><p>计算广告是计算机科学中出现的一个相对较新的子科学领域，利用算法来给用户展示出最佳的广告。它集合了下面的技术于一身：</p>
+<ul>
+<li>信息检索 (Information retrieval)</li>
+<li>大规模搜索与文本分析（Large scale search and text analysis）</li>
+<li>统计建模（Statistical modeling）</li>
+<li>机器学习 （Machine learning）</li>
+<li>微观经济学 (Microeconomics)</li>
+<li>博弈论、拍卖理论与机制设计 （Game theory, auction theory, mechanism design）</li>
+<li>分类(Classification)</li>
+<li>优化(Optimization)</li>
+<li>推荐系统 (Recommender systems)<a id="more"></a>
+</li>
+</ul>
+<h2 id="计算广告的核心挑战"><a href="#计算广告的核心挑战" class="headerlink" title="计算广告的核心挑战"></a>计算广告的核心挑战</h2><p>在一个给定场景下的给定用户和合适的广告之间找到一个最佳的匹配(Find the “best match” between a given user in a given context and a suitable advertisement)。</p>
+<p>如果把广告看作一种信息，那么找到一个“最佳广告”就是一个信息检索问题，这个问题附带有多个可能互相矛盾的效用函数。</p>
+<h2 id="为什么需要计算广告"><a href="#为什么需要计算广告" class="headerlink" title="为什么需要计算广告"></a>为什么需要计算广告</h2><ol>
+<li>把传统广告学和计算机的计算能力相结合</li>
+<li>从算法的角度来思考旧的挑战</li>
+</ol>
+<p>传统广告：</p>
+<ul>
+<li>相对而言平台较小－－杂志、广告牌、报纸、传单、电视等</li>
+<li>每个平台花费巨资（几百万的电视广告费用）</li>
+<li>不可能个性化</li>
+<li>只能由聪明的广告人来决定在哪里投放</li>
+<li>很难度量投资回报率(ROI)</li>
+</ul>
+<p>计算广告：</p>
+<ul>
+<li>亿级别的投放机会</li>
+<li>亿级别的创意形式</li>
+<li>完全个性化</li>
+<li>每次投放而言花费很小</li>
+<li>更容易度量</li>
+</ul>
+<p>著名的百货商店之父约翰*沃纳梅克曾经说过：<br><blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p>我在广告上的投资有一半是无用的，但是问题是我不知道是哪一半。</p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote></p>
+<h2 id="计算广告的分类"><a href="#计算广告的分类" class="headerlink" title="计算广告的分类"></a>计算广告的分类</h2><p>根据广告主的计费方式，可以分为</p>
+<ul>
+<li>千次展现付费 CPM(cost per thousand impressions) 主要用于品牌曝光,例如钻展业务</li>
+<li>每次点击扣费 CPC(cost per click) 通常用于文本广告,例如直通车搜索／定向广告</li>
+<li>成交/行为付费 CPT/CPA(cost per transaction/action) 例如淘宝客业务</li>
+</ul>
+<p>根据展现形式分为:图片广告[Graphical Ads]、文本广告[Textual Ads]、视频等。</p>
+<p>根据不同的产品形式分为</p>
+<ul>
+<li>搜索广告(Sponsored Search)，例如搜索直通车KGB业务线</li>
+<li>上下文广告[Contexual Ads]，例如Google Adsense</li>
+<li>展示广告[Display ads]，例如钻展业务线</li>
+<li>定向广告[Targeting Ads]，例如定向直通车K2业务线</li>
+</ul>
+<p>在互联网中，搜索广告是最主要的文本广告的形式。</p>
+<h2 id="互联网广告的意义"><a href="#互联网广告的意义" class="headerlink" title="互联网广告的意义"></a>互联网广告的意义</h2><p>广告支撑起了互联网上一个巨大的生态系统。如果没有广告，互联网就不可能像现在这么发展迅速、规模宏大。广告给消费者提供了直接和间接的巨大价值。</p>
+<ol>
+<li>内容提供商通过广告赚钱，养活了 宏观／微观的内容提供商 ［就是各种大小网站］</li>
+<li>精准触达／定向使得长尾生意成为可能</li>
+<li>广告主的收入使得大批“免费”的服务成为可能：Facebook, Google, Twitter,Yahoo</li>
+</ol>
+<p>计算广告的参与方：</p>
+<ol>
+<li>流量提供方(Publishers)</li>
+<li>广告主(Advertisers)</li>
+<li>浏览者／用户(Users)</li>
+<li>广告平台／广告网络(Match maker/Ad network)</li>
+</ol>
+<p>这些参与者有各自不同的诉求：流量提供者渴望每次展现/搜索的高收益，广告主渴望高投资回报率(ROI)和流量，用户希望高相关性，广告网络渴望收益与市场份额。而广告的选择，就是要兼顾四个参与者的收益，达到最优状态,需要权衡长期和短期的商业目标。</p>
+<h2 id="计算广告对性能的要求很高"><a href="#计算广告对性能的要求很高" class="headerlink" title="计算广告对性能的要求很高"></a>计算广告对性能的要求很高</h2><p>亿级别：</p>
+<ul>
+<li>搜索广告中有数亿级别的广告</li>
+<li>每个小时有亿级别的搜索</li>
+<li>万亿级别页面展现次数</li>
+<li>亿级的用户</li>
+</ul>
+<p>毫秒级别：</p>
+<ul>
+<li>请求是在用户“等待”过程中完成的,必须在100ms内返回</li>
+</ul>
+<p>钱：</p>
+<ul>
+<li>每个请求都需要消耗CPU资源</li>
+<li>数据通常放在内存中 ［需要大量内存，而内存比硬盘贵］</li>
+<li>每次请求的耗费必须比收益要低</li>
+<li>过低的点击率(ctr)使得上面的挑战更加困难</li>
+</ul>
+<h1 id="搜索广告-sponsored-search"><a href="#搜索广告-sponsored-search" class="headerlink" title="搜索广告(sponsored search)"></a>搜索广告(sponsored search)</h1><p>搜索广告是由搜索关键词驱动的广告。广告主选择一个“竞价词”，当用户触发某个搜索请求时，广告主的广告得以展现。业界的搜索广告系统：Google AdWords、 百度凤巢、淘宝搜索直通车等。</p>
+<p>在上文中我们提到的计算广告中有4个参与方，在搜索广告中，流量提供方是搜索结果页 SERP(search results page)，通常流量提供方和广告平台是同一个（Google，Bing），当然也可以不一样（微软给雅虎提供广告搜索）。</p>
+<h2 id="搜索广告参与者之间的交互行为"><a href="#搜索广告参与者之间的交互行为" class="headerlink" title="搜索广告参与者之间的交互行为"></a>搜索广告参与者之间的交互行为</h2><p>广告主：</p>
+<ol>
+<li>提交广告，购买相关的竞价词</li>
+<li>为了获得好的展示位置而竞价</li>
+<li>为获得的点击付费</li>
+</ol>
+<p>浏览者：给搜索引擎提交查询串，表达一定的意图</p>
+<p>搜索引擎：</p>
+<ol>
+<li>根据用户的查询串在web页面语料库和广告语料库中分别进行检索</li>
+<li>把自然搜索结果和广告搜索结果结合到一起，展示在搜索结果页 SERP上</li>
+</ol>
+<h2 id="搜索广告中存在的三个子问题"><a href="#搜索广告中存在的三个子问题" class="headerlink" title="搜索广告中存在的三个子问题"></a>搜索广告中存在的三个子问题</h2><p>从搜索引擎的角度来看，搜索广告中存在三个子问题：</p>
+<ol>
+<li>广告检索</li>
+<li>给拿到的广告排序</li>
+<li>根据点击收费</li>
+</ol>
+<p>以上三个顺序是搜索广告事件发生的顺序,这里面1和2属于信息检索问题，而2和3又属于微观经济学问题。</p>
+<p>文章一开头提到了计算广告中涉及到了博弈论，拍卖理论，机制设计，到底在哪里用到了呢？想了解这些疑问就得接着往下看。</p>
+<p>对于目前的搜索广告来说，都被设计成了拍卖的机制。搜索引擎拍卖的是每个流量中可能的广告位，广告主提交对购买的关键词的每次点击的最高出价，广告主是不知道其他人的出价信息的。虽然每个流量中一般会有多个广告位置，但是广告主只出一个价格。最终搜索引擎根据广告主竞价和广告的点击率CTR来对广告进行排序，决定最终的展示位置。</p>
+<p>点击扣费时，目前普遍采用的是Google发明的广义第二价格扣费GSP(General Second Price)，有两种策略：</p>
+<ul>
+<li>竞价排序：根据广告的出价倒序排列，位于第i个的广告支付第i+1个广告的竞价</li>
+<li>根据广告平台的收益排序：根据期望最大收益ecpm来排序，ecpm=bidprice*ctr</li>
+</ul>
+<p>被点击的广告主i付的费用为<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">price&#x3D;bidprice(i+1)*(ctr(i+1)&#x2F;ctr(i))</span><br></pre></td></tr></table></figure><br>通常根据期望最大收益ecpm来排序的，由于<code>bidprice(i)*ctr(i)&gt;bidprice(i+1)*ctr(i+1)</code>,可以从上述公式看到广告主实际扣费肯定小于最高出价。</p>
+<p>在广告搜索引擎中，不能直接拿着用户的查询串在倒排索引中进行广告检索的，因为这样可能导致搜出来的广告深度不够，而且查询多种多样，在搜索引擎有限的资源下，不可能对所有查询建立倒排索引，所以需要经过查询改写来改写出归一化后的多个搜索词，用这些搜索词去检索广告。</p>
+<h2 id="查询改写-Query-Rewrite"><a href="#查询改写-Query-Rewrite" class="headerlink" title="查询改写(Query Rewrite)"></a>查询改写(Query Rewrite)</h2><p>把用户查询(Query)改写成竞价词(Bidword)的过程。总的来说有离线(offline)改写和在线改写(online)两类。</p>
+<ul>
+<li>离线改写</li>
+</ul>
+<p>在离线的时候利用相对在线而言更多的数据来处理用户的查询，生成一个query-&gt;bidword的映射关系表，缺点是只能给那些高频词进行离线处理。这里有两个问题：我们应该改写哪些查询－－我们需要市场深度的查询上。我们应该改写成什么样的查询－－那些市场深度足够的查询上。</p>
+<ul>
+<li>在线改写</li>
+</ul>
+<p>对于离线不能处理的少数请求需要我们进行在线改写，在线改写相对离线而言，资源受限（内存限制，时间限制），需要在很短的时间（数ms）内做分析。</p>
+<h2 id="广告选择-Ad-Selection"><a href="#广告选择-Ad-Selection" class="headerlink" title="广告选择(Ad Selection)"></a>广告选择(Ad Selection)</h2><p>给定一个查询，搜索引擎可以展示两类广告：</p>
+<ul>
+<li>精确匹配EM(Exact match): 广告主对特定的查询竞价</li>
+<li>高级匹配AM(Advanced match)或广泛匹配(Broad match): 广告主并不对特定的词进行竞价，但是这个查询被认为是广告主感兴趣的。</li>
+</ul>
+<p>搜索广告中的流量具有长尾效应，非常多的长尾流量查询在搜索广告中没有对应的广告，高级匹配主要是为了解决这相当一部分流量没有被竞价的问题，广告主不关心竞价词，他们只关心转化－－卖掉商品。如何覆盖到相关的流量呢，从引擎的角度出发，高级匹配比精确匹配更有挑战性。</p>
+<p>在广告搜索引擎中，广告语料库中的广告数量巨大，高达百万之多，而实际展示的过程中，只有极少数量的广告能够展示出来，目前业界普遍采用两阶段广告选择来解决性能问题。即在广告检索过程中，整个广告的选择分为两部分：</p>
+<ul>
+<li>广告检索（Ad Retrieval）:从整个广告语料库里面选出一个最可能的候选集合。此过程是粗选阶段，我们用来排序的目标函数（例如评估相关性）可能和最终排序的函数（例如ecpm）不同。</li>
+<li>广告重排序(Ad Reordering)：利用更多的数据来对第一阶段返回的有限的候选广告集合进行更为精细，更为复杂的计算。这个阶段必须综合考虑竞价和相关性分数（例如ecpm）。</li>
+</ul>
+<p>对于广告重排序阶段，目前有两种主流的方法，以赛马为例：</p>
+<ul>
+<li>反应式(Reactive)：选定一匹马，根据它的历史成绩来预测未来的表现</li>
+<li>预估式(Predictive)：根据体重，腿长等特征为赛马建模，找到这些特征在预测比赛名次终的重要程度，然后基于这些特征来给见过、未见过的赛马预测成绩。</li>
+</ul>
+<p>当我们拥有对某赛马的足够信息的时候，就使用这些信息（反应性），否则使用模型（预测性）。</p>
+<p>目前主流的搜索广告系统都是预估式的，通过抽取广告中影响CTR的特征值来给广告建模，基于这些特征值来给广告进行CTR预估。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A/" rel="tag"># 计算广告</a>
+              <a href="/tags/%E6%90%9C%E7%B4%A2%E5%B9%BF%E5%91%8A/" rel="tag"># 搜索广告</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/query-rewrite/" rel="prev" title="查询改写（Query Rewrite）方法总结">
+      <i class="fa fa-chevron-left"></i> 查询改写（Query Rewrite）方法总结
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/hign-eq-is-talking/" rel="next" title="《所谓情商高就是会说话》读书笔记1">
+      《所谓情商高就是会说话》读书笔记1 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A-Computational-Advertising"><span class="nav-number">1.</span> <span class="nav-text">计算广告(Computational Advertising)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A%E7%9A%84%E6%A0%B8%E5%BF%83%E6%8C%91%E6%88%98"><span class="nav-number">1.1.</span> <span class="nav-text">计算广告的核心挑战</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A"><span class="nav-number">1.2.</span> <span class="nav-text">为什么需要计算广告</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A%E7%9A%84%E5%88%86%E7%B1%BB"><span class="nav-number">1.3.</span> <span class="nav-text">计算广告的分类</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%92%E8%81%94%E7%BD%91%E5%B9%BF%E5%91%8A%E7%9A%84%E6%84%8F%E4%B9%89"><span class="nav-number">1.4.</span> <span class="nav-text">互联网广告的意义</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A%E5%AF%B9%E6%80%A7%E8%83%BD%E7%9A%84%E8%A6%81%E6%B1%82%E5%BE%88%E9%AB%98"><span class="nav-number">1.5.</span> <span class="nav-text">计算广告对性能的要求很高</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%90%9C%E7%B4%A2%E5%B9%BF%E5%91%8A-sponsored-search"><span class="nav-number">2.</span> <span class="nav-text">搜索广告(sponsored search)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%90%9C%E7%B4%A2%E5%B9%BF%E5%91%8A%E5%8F%82%E4%B8%8E%E8%80%85%E4%B9%8B%E9%97%B4%E7%9A%84%E4%BA%A4%E4%BA%92%E8%A1%8C%E4%B8%BA"><span class="nav-number">2.1.</span> <span class="nav-text">搜索广告参与者之间的交互行为</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%90%9C%E7%B4%A2%E5%B9%BF%E5%91%8A%E4%B8%AD%E5%AD%98%E5%9C%A8%E7%9A%84%E4%B8%89%E4%B8%AA%E5%AD%90%E9%97%AE%E9%A2%98"><span class="nav-number">2.2.</span> <span class="nav-text">搜索广告中存在的三个子问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E6%94%B9%E5%86%99-Query-Rewrite"><span class="nav-number">2.3.</span> <span class="nav-text">查询改写(Query Rewrite)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B9%BF%E5%91%8A%E9%80%89%E6%8B%A9-Ad-Selection"><span class="nav-number">2.4.</span> <span class="nav-text">广告选择(Ad Selection)</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

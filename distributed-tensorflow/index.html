@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Methods that scale with computation are the future of AI.—Rich Sutton, 强化学习之父  大数据时代的互联网应用产生了大量的数据，这些数据就好比是石油，里面蕴含了大量知识等待被挖掘。深度学习就是挖掘数据中隐藏知识的利器，在许多领域都取得了非常成功的应用。然而，大量的数据使得模型的训练变得复杂，使用多台设备分布式训练成了必备的选择">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一文说清楚Tensorflow分布式训练必备知识">
+<meta property="og:url" content="http://xudongyang.coding.me/distributed-tensorflow/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="Methods that scale with computation are the future of AI.—Rich Sutton, 强化学习之父  大数据时代的互联网应用产生了大量的数据，这些数据就好比是石油，里面蕴含了大量知识等待被挖掘。深度学习就是挖掘数据中隐藏知识的利器，在许多领域都取得了非常成功的应用。然而，大量的数据使得模型的训练变得复杂，使用多台设备分布式训练成了必备的选择">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://d3ansictanv2wj.cloudfront.net/figure1-1cd2c0441cf54f2237e3d8720180cb45.png">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2017/4/10/7eda6fce5eec9cbce366426fcecbe56f?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2017/4/10/0b3dc701f60001d2454b268469245cb8?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2017/4/10/90617a718625f2f6005e6627dc2c1837?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2017/4/10/0d89e28d77235fa27c522b9d03c940ba?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta property="og:image" content="https://d3ansictanv2wj.cloudfront.net/figure2-f3599b8db486355f7427b3bb860692c3.png">
+<meta property="og:image" content="https://gw.alipayobjects.com/zos/skylark/a242d040-441b-4bb2-af22-2d40f95102cf/2018/png/c3d9d865-211f-4880-98c2-a7505ccb6a1d.png">
+<meta property="og:image" content="https://d3ansictanv2wj.cloudfront.net/figure4-7564694e76d08e091ce453f681515e59.png">
+<meta property="og:image" content="https://private-alipayobjects.alipay.com/alipay-rmsdeploy-image/skylark/png/1869bb5b-29ce-4ca8-9461-e23ad3a7bb45.png">
+<meta property="og:image" content="https://private-alipayobjects.alipay.com/alipay-rmsdeploy-image/skylark/png/5f715f8d-9eed-481f-a969-13c78d50529c.png">
+<meta property="og:image" content="https://hopshadoop47880376.files.wordpress.com/2018/10/null9.png">
+<meta property="article:published_time" content="2019-03-22T03:18:29.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.869Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="深度学习">
+<meta property="article:tag" content="tensorflow">
+<meta property="article:tag" content="deep learning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://d3ansictanv2wj.cloudfront.net/figure1-1cd2c0441cf54f2237e3d8720180cb45.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/distributed-tensorflow/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>一文说清楚Tensorflow分布式训练必备知识 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/distributed-tensorflow/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          一文说清楚Tensorflow分布式训练必备知识
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-03-22 11:18:29" itemprop="dateCreated datePublished" datetime="2019-03-22T11:18:29+08:00">2019-03-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">深度学习</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/distributed-tensorflow/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/distributed-tensorflow/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>5.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>5 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>Methods that scale with computation are the future of AI.<br>—Rich Sutton, 强化学习之父</p>
+</blockquote>
+<p>大数据时代的互联网应用产生了大量的数据，这些数据就好比是石油，里面蕴含了大量知识等待被挖掘。深度学习就是挖掘数据中隐藏知识的利器，在许多领域都取得了非常成功的应用。然而，大量的数据使得模型的训练变得复杂，使用多台设备分布式训练成了必备的选择。</p>
+<p>Tensorflow是目前比较流行的深度学习框架，本文着重介绍tensorflow框架是如何支持分布式训练的。<br><a id="more"></a> </p>
+<h2 id="分布式训练策略"><a href="#分布式训练策略" class="headerlink" title="分布式训练策略"></a>分布式训练策略</h2><h3 id="模型并行"><a href="#模型并行" class="headerlink" title="模型并行"></a>模型并行</h3><p>所谓模型并行指的是将模型部署到很多设备上（设备可能分布在不同机器上，下同）运行，比如多个机器的GPUs。当神经网络模型很大时，由于显存限制，它是难以完整地跑在单个GPU上，这个时候就需要把模型分割成更小的部分，不同部分跑在不同的设备上，例如将网络不同的层运行在不同的设备上。</p>
+<p>由于模型分割开的各个部分之间有相互依赖关系，因此计算效率不高。所以在模型大小不算太大的情况下一般不使用模型并行。</p>
+<p>在tensorflow的术语中，模型并行称之为”in-graph replication”。</p>
+<h3 id="数据并行"><a href="#数据并行" class="headerlink" title="数据并行"></a>数据并行</h3><p>数据并行在多个设备上放置相同的模型，各个设备采用不同的训练样本对模型训练。每个Worker拥有模型的完整副本并且进行各自单独的训练。</p>
+<p><img src="https://d3ansictanv2wj.cloudfront.net/figure1-1cd2c0441cf54f2237e3d8720180cb45.png" alt></p>
+<p>相比较模型并行，数据并行方式能够支持更大的训练规模，提供更好的扩展性，因此数据并行是深度学习最常采用的分布式训练策略。</p>
+<p>在tensorflow的术语中，数据并行称之为”between-graph replication”。</p>
+<h2 id="分布式并行模式"><a href="#分布式并行模式" class="headerlink" title="分布式并行模式"></a>分布式并行模式</h2><p>深度学习模型的训练是一个迭代的过程。在每一轮迭代中，前向传播算法会根据当前参数的取值计算出在一小部分训练数据上的预测值，然后反向传播算法再根据损失函数计算参数的梯度并更新参数。在并行化地训练深度学习模型时，不同设备（GPU或CPU）可以在不同训练数据上运行这个迭代的过程，而不同并行模式的区别在于不同的参数更新方式。</p>
+<p>深度学习模型训练流程图<br> <img src="https://user-gold-cdn.xitu.io/2017/4/10/7eda6fce5eec9cbce366426fcecbe56f?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="深度学习模型训练流程图"></p>
+<p>数据并行可以是同步的（synchronous），也可以是异步的（asynchronous）。</p>
+<h3 id="异步训练"><a href="#异步训练" class="headerlink" title="异步训练"></a>异步训练</h3><p>异步训练中，各个设备完成一个mini-batch训练之后，不需要等待其它节点，直接去更新模型的参数。从下图中可以看到，在每一轮迭代时，不同设备会读取参数最新的取值，但因为不同设备读取参数取值的时间不一样，所以得到的值也有可能不一样。根据当前参数的取值和随机获取的一小部分训练数据，不同设备各自运行反向传播的过程并独立地更新参数。可以简单地认为异步模式就是单机模式复制了多份，每一份使用不同的训练数据进行训练。</p>
+<p><img src="https://user-gold-cdn.xitu.io/2017/4/10/0b3dc701f60001d2454b268469245cb8?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="异步模式深度学习模型训练流程图"></p>
+<p>异步训练总体会训练速度会快很多，但是异步训练的一个很严重的问题是梯度失效问题（stale gradients），刚开始所有设备采用相同的参数来训练，但是异步情况下，某个设备完成一步训练后，可能发现模型参数已经被其它设备更新过了，此时这个设备计算出的梯度就过期了。由于梯度失效问题，异步训练可能陷入次优解（sub-optimal training performance）。图10-3中给出了一个具体的样例来说明异步模式的问题。其中黑色曲线展示了模型的损失函数，黑色小球表示了在t0时刻参数所对应的损失函数的大小。假设两个设备d0和d1在时间t0同时读取了参数的取值，那么设备d0和d1计算出来的梯度都会将小黑球向左移动。假设在时间t1设备d0已经完成了反向传播的计算并更新了参数，修改后的参数处于图10-3中小灰球的位置。然而这时的设备d1并不知道参数已经被更新了，所以在时间t2时，设备d1会继续将小球向左移动，使得小球的位置达到图10-3中小白球的地方。从图10-3中可以看到，当参数被调整到小白球的位置时，将无法达到最优点。</p>
+<p><img src="https://user-gold-cdn.xitu.io/2017/4/10/90617a718625f2f6005e6627dc2c1837?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt></p>
+<p>在tensorflow中异步训练是默认的并行训练模式。</p>
+<h3 id="同步训练"><a href="#同步训练" class="headerlink" title="同步训练"></a>同步训练</h3><p>所谓同步指的是所有的设备都是采用相同的模型参数来训练，等待所有设备的mini-batch训练完成后，收集它们的梯度后执行模型的一次参数更新。在同步模式下，所有的设备同时读取参数的取值，并且当反向传播算法完成之后同步更新参数的取值。单个设备不会单独对参数进行更新，而会等待所有设备都完成反向传播之后再统一更新参数 。</p>
+<p><img src="https://user-gold-cdn.xitu.io/2017/4/10/0d89e28d77235fa27c522b9d03c940ba?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="同步模式深度学习模型训练流程图"></p>
+<p>同步模式相当于通过聚合多个设备上的mini-batch形成一个更大的batch来训练模型，<strong>相对于异步模式，在同步模型下根据并行的worker数量线性增加学习速率会取得不错的效果</strong>。如果使用tensorflow estimator接口来分布式训练模型的话，在同步模式下需要适当减少训练步数（相对于采用异步模式来说），否则需要花费较长的训练时间。Tensorflow estimator接口唯一支持的停止训练的条件就全局训练步数达到指定的max_steps。</p>
+<p>Tensorflow提供了<a target="_blank" rel="noopener" href="https://www.tensorflow.org/versions/master/api_docs/python/tf/train/SyncReplicasOptimizer">tf.train.SyncReplicasOptimizer</a>类用于执行同步训练。通过使用SyncReplicasOptimzer，你可以很方便的构造一个同步训练的分布式任务。把异步训练改造成同步训练只需要两步：</p>
+<ol>
+<li>在原来的Optimizer上封装SyncReplicasOptimizer，将参数更新改为同步模式；<br><code>optimizer = tf.train.SyncReplicasOptimizer(optimizer, replicas_to_aggregate=num_workers)</code></li>
+<li>在MonitoredTrainingSession或者EstimatorSpec的hook中增加sync_replicas_hook：<br><code>sync_replicas_hook = optimizer.make_session_run_hook(is_chief, num_tokens=0)</code></li>
+</ol>
+<h3 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h3><p>下图可以一目了然地看出同步训练与异步训练之间的区别。<br><img src="https://d3ansictanv2wj.cloudfront.net/figure2-f3599b8db486355f7427b3bb860692c3.png" alt></p>
+<p>同步训练看起来很不错，但是实际上需要各个设备的计算能力要均衡，而且要求集群的通信也要均衡，类似于木桶效应，一个拖油瓶会严重拖慢训练进度，所以同步训练方式相对来说训练速度会慢一些。</p>
+<p>虽然异步模式理论上存在缺陷，但因为训练深度学习模型时使用的随机梯度下降本身就是梯度下降的一个近似解法，而且即使是梯度下降也无法保证达到全局最优值。在实际应用中，在相同时间内使用异步模式训练的模型不一定比同步模式差。所以这两种训练模式在实践中都有非常广泛的应用。</p>
+<h2 id="分布式训练架构"><a href="#分布式训练架构" class="headerlink" title="分布式训练架构"></a>分布式训练架构</h2><h3 id="Parameter-Server架构"><a href="#Parameter-Server架构" class="headerlink" title="Parameter Server架构"></a>Parameter Server架构</h3><p>Parameter server架构（PS架构）是深度学习最常采用的分布式训练架构。在PS架构中，集群中的节点被分为两类：parameter server和worker。其中parameter server存放模型的参数，而worker负责计算参数的梯度。在每个迭代过程，worker从parameter sever中获得参数，然后将计算的梯度返回给parameter server，parameter server聚合从worker传回的梯度，然后更新参数，并将新的参数广播给worker。</p>
+<p><img src="https://gw.alipayobjects.com/zos/skylark/a242d040-441b-4bb2-af22-2d40f95102cf/2018/png/c3d9d865-211f-4880-98c2-a7505ccb6a1d.png" alt></p>
+<h3 id="Ring-AllReduce架构"><a href="#Ring-AllReduce架构" class="headerlink" title="Ring AllReduce架构"></a>Ring AllReduce架构</h3><p>PS架构中，当worker数量较多时，ps节点的网络带宽将成为系统的瓶颈。</p>
+<p>Ring AllReduce架构中各个设备都是worker，没有中心节点来聚合所有worker计算的梯度。Ring AllReduce算法将 device 放置在一个逻辑环路（logical ring）中。每个 device 从上行的device 接收数据，并向下行的 deivce 发送数据，因此可以充分利用每个 device 的上下行带宽。</p>
+<p><img src="https://d3ansictanv2wj.cloudfront.net/figure4-7564694e76d08e091ce453f681515e59.png" alt="Ring-allreduce architecture for synchronous stochastic gradient descent"></p>
+<p>使用 Ring Allreduce 算法进行某个稠密梯度的平均值的基本过程如下：</p>
+<ol>
+<li>将每个设备上的梯度 tensor 切分成长度大致相等的 num_devices 个分片；</li>
+<li>ScatterReduce 阶段：通过 num_devices - 1 轮通信和相加，在每个 device 上都计算出一个 tensor 分片的和；</li>
+<li>AllGather 阶段：通过 num_devices - 1 轮通信和覆盖，将上个阶段计算出的每个 tensor 分片的和广播到其他 device；</li>
+<li>在每个设备上合并分片，得到梯度和，然后除以 num_devices，得到平均梯度；</li>
+</ol>
+<p>以 4 个 device上的梯度求和过程为例：</p>
+<p>ScatterReduce 阶段：<br><img src="https://private-alipayobjects.alipay.com/alipay-rmsdeploy-image/skylark/png/1869bb5b-29ce-4ca8-9461-e23ad3a7bb45.png" alt><br>经过 num_devices - 1 轮后，每个 device 上都有一个 tensor 分片进得到了这个分片各个 device 上的和；</p>
+<p>AllGather 阶段：<br><img src="https://private-alipayobjects.alipay.com/alipay-rmsdeploy-image/skylark/png/5f715f8d-9eed-481f-a969-13c78d50529c.png" alt></p>
+<p>经过 num_devices - 1 轮后，每个 device 上都每个 tensor 分片都得到了这个分片各个 device 上的和；</p>
+<p>由上例可以看出，通信数据量的上限不会随分布式规模变大而变大一次 Ring Allreduce 中总的通信数据量是：</p>
+<script type="math/tex; mode=display">2 \cdot \frac{num\_devices - 1}{num\_devices} \cdot {tensor\_size} \approx 2 \cdot tensor\_size</script><p>相比PS架构，Ring Allreduce架构是带宽优化的，因为集群中每个节点的带宽都被充分利用。此外，在深度学习训练过程中，计算梯度采用BP算法，其特点是后面层的梯度先被计算，而前面层的梯度慢于前面层，Ring-allreduce架构可以充分利用这个特点，在前面层梯度计算的同时进行后面层梯度的传递，从而进一步减少训练时间。Ring Allreduce的训练速度基本上线性正比于GPUs数目（worker数）。</p>
+<p>2017年2月百度在PaddlePaddle平台上首次引入了<a target="_blank" rel="noopener" href="https://github.com/baidu-research/baidu-allreduce">ring-allreduce</a>的架构，随后将其提交到tensorflow的contrib package中。同年8月，Uber为tensorflow平台开源了一个更加易用和高效的ring allreduce分布式训练库<a target="_blank" rel="noopener" href="https://github.com/uber/horovod">Horovod</a>。最后，tensorflow官方终于也在1.11版本中支持了allreduce的分布式训练策略<a target="_blank" rel="noopener" href="https://github.com/logicalclocks/hops-examples/tree/master/tensorflow/notebooks/Distributed_Training/collective_allreduce_strategy">CollectiveAllReduceStrategy</a>，其跟estimator配合使用非常方便，只需要构造<code>tf.estimator.RunConfig</code>对象时传入CollectiveAllReduceStrategy参数即可。</p>
+<p><img src="https://hopshadoop47880376.files.wordpress.com/2018/10/null9.png" alt></p>
+<h2 id="分布式tensorflow"><a href="#分布式tensorflow" class="headerlink" title="分布式tensorflow"></a>分布式tensorflow</h2><p>推荐使用 TensorFlow Estimator API 来编写分布式训练代码，理由如下：</p>
+<ul>
+<li>开发方便，比起low level的api开发起来更加容易</li>
+<li>可以方便地和其他的高阶API结合使用，比如Dataset、FeatureColumns、Head等</li>
+<li>模型函数model_fn的开发可以使用任意的low level函数，依然很灵活</li>
+<li>单机和分布式代码一致，且不需要考虑底层的硬件设施</li>
+<li>可以比较方便地和一些分布式调度框架（e.g. xlearning）结合使用</li>
+</ul>
+<p>要让tensorflow分布式运行，首先我们需要定义一个由参与分布式计算的机器组成的集群，如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cluster &#x3D; &#123;&#39;chief&#39;: [&#39;host0:2222&#39;],</span><br><span class="line">            &#39;ps&#39;: [&#39;host1:2222&#39;, &#39;host2:2222&#39;],</span><br><span class="line">            &#39;worker&#39;: [&#39;host3:2222&#39;, &#39;host4:2222&#39;, &#39;host5:2222&#39;]&#125;</span><br></pre></td></tr></table></figure><br>集群中一般有多个worker，需要指定其中一个worker为主节点（cheif），chief节点会执行一些额外的工作，比如模型导出之类的。在PS分布式架构环境中，还需要定义ps节点。</p>
+<p>要运行分布式Estimator模型，只需要设置好<code>TF_CONFIG</code>环境变量即可，可参考如下代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"># Example of non-chief node:</span><br><span class="line">os.environ[&#39;TF_CONFIG&#39;] &#x3D; json.dumps(</span><br><span class="line">    &#123;&#39;cluster&#39;: cluster,</span><br><span class="line">     &#39;task&#39;: &#123;&#39;type&#39;: &#39;worker&#39;, &#39;index&#39;: 1&#125;&#125;)</span><br><span class="line"></span><br><span class="line"># Example of chief node:     </span><br><span class="line">os.environ[&#39;TF_CONFIG&#39;] &#x3D; json.dumps(</span><br><span class="line">    &#123;&#39;cluster&#39;: cluster,</span><br><span class="line">     &#39;task&#39;: &#123;&#39;type&#39;: &#39;chief&#39;, &#39;index&#39;: 0&#125;&#125;)</span><br><span class="line"></span><br><span class="line"># Example of evaluator node (evaluator is not part of training cluster)     </span><br><span class="line">os.environ[&#39;TF_CONFIG&#39;] &#x3D; json.dumps(</span><br><span class="line">    &#123;&#39;cluster&#39;: cluster,</span><br><span class="line">     &#39;task&#39;: &#123;&#39;type&#39;: &#39;evaluator&#39;, &#39;index&#39;: 0&#125;&#125;)</span><br></pre></td></tr></table></figure><br>定义好上述环境变量后，调用<code>tf.estimator.train_and_evaluate</code>即可开始分布式训练和评估，其他部分的代码跟开发单机的程序是一样的，可以参考下面的资料：</p>
+<ol>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/38470806">基于Tensorflow高阶API构建大规模分布式深度学习模型系列: 开篇</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/38421397">基于Tensorflow高阶API构建大规模分布式深度学习模型系列: 基于Dataset API处理Input pipeline</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/41473323">基于Tensorflow高阶API构建大规模分布式深度学习模型系列: 自定义Estimator（以文本分类CNN模型为例）</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/41663141">基于Tensorflow高阶API构建大规模分布式深度学习模型系列: 特征工程 Feature Column</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/42214716">基于Tensorflow高阶API构建大规模分布式深度学习模型系列: CVR预估案例之ESMM模型</a></li>
+</ol>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://www.oreilly.com/ideas/distributed-tensorflow">Distributed TensorFlow</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.logicalclocks.com/goodbye-horovod-hello-tensorflow-collectiveallreduce/">Goodbye Horovod, Hello CollectiveAllReduce
+</a></li>
+<li><a target="_blank" rel="noopener" href="https://cloud.google.com/solutions/partners/quantiphi-distributed-training-using-tensorflow">Overview: Distributed training using TensorFlow Estimator APIs</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" rel="tag"># 深度学习</a>
+              <a href="/tags/tensorflow/" rel="tag"># tensorflow</a>
+              <a href="/tags/deep-learning/" rel="tag"># deep learning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/xdeepfm/" rel="prev" title="深度CTR预估模型中的特征自动组合机制演化简史">
+      <i class="fa fa-chevron-left"></i> 深度CTR预估模型中的特征自动组合机制演化简史
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/rank-distance/" rel="next" title="如何度量两个排序列表的相似性？">
+      如何度量两个排序列表的相似性？ <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E8%AE%AD%E7%BB%83%E7%AD%96%E7%95%A5"><span class="nav-number">1.</span> <span class="nav-text">分布式训练策略</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%B9%B6%E8%A1%8C"><span class="nav-number">1.1.</span> <span class="nav-text">模型并行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%B9%B6%E8%A1%8C"><span class="nav-number">1.2.</span> <span class="nav-text">数据并行</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E5%B9%B6%E8%A1%8C%E6%A8%A1%E5%BC%8F"><span class="nav-number">2.</span> <span class="nav-text">分布式并行模式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%82%E6%AD%A5%E8%AE%AD%E7%BB%83"><span class="nav-number">2.1.</span> <span class="nav-text">异步训练</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E8%AE%AD%E7%BB%83"><span class="nav-number">2.2.</span> <span class="nav-text">同步训练</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">2.3.</span> <span class="nav-text">小结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E8%AE%AD%E7%BB%83%E6%9E%B6%E6%9E%84"><span class="nav-number">3.</span> <span class="nav-text">分布式训练架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Parameter-Server%E6%9E%B6%E6%9E%84"><span class="nav-number">3.1.</span> <span class="nav-text">Parameter Server架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Ring-AllReduce%E6%9E%B6%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text">Ring AllReduce架构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8Ftensorflow"><span class="nav-number">4.</span> <span class="nav-text">分布式tensorflow</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">5.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

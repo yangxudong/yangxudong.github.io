@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="推荐系统选择商品展现给用户，并期待用户的正向反馈（点击、成交）。然而推荐系统并不能提前知道用户在观察到商品之后如何反馈，也就是不能提前获得本次推荐的收益，唯一能做的就是不停地尝试，并实时收集反馈以便更新自己试错的策略。目的是使得整个过程损失的收益最小。这一过程就类似与一个赌徒在赌场里玩老虎机赌博。赌徒要去摇老虎机，走进赌场一看，一排老虎机，外表一模一样，但是每个老虎机吐钱的概率可不一样，他不知道每">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Contextual Bandit算法在推荐系统中的实现及应用">
+<meta property="og:url" content="http://xudongyang.coding.me/linucb/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="推荐系统选择商品展现给用户，并期待用户的正向反馈（点击、成交）。然而推荐系统并不能提前知道用户在观察到商品之后如何反馈，也就是不能提前获得本次推荐的收益，唯一能做的就是不停地尝试，并实时收集反馈以便更新自己试错的策略。目的是使得整个过程损失的收益最小。这一过程就类似与一个赌徒在赌场里玩老虎机赌博。赌徒要去摇老虎机，走进赌场一看，一排老虎机，外表一模一样，但是每个老虎机吐钱的概率可不一样，他不知道每">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://xudongyang.coding.me/linucb/LinUCB.png">
+<meta property="article:published_time" content="2018-04-16T11:51:15.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.908Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="推荐系统">
+<meta property="article:tag" content="LinUCB">
+<meta property="article:tag" content="在线学习">
+<meta property="article:tag" content="E&amp;E">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://xudongyang.coding.me/linucb/LinUCB.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/linucb/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Contextual Bandit算法在推荐系统中的实现及应用 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/linucb/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Contextual Bandit算法在推荐系统中的实现及应用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-04-16 19:51:15" itemprop="dateCreated datePublished" datetime="2018-04-16T19:51:15+08:00">2018-04-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E7%AE%97%E6%B3%95%E6%A8%A1%E5%9E%8B/" itemprop="url" rel="index"><span itemprop="name">算法模型</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/linucb/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/linucb/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>10k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>9 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>推荐系统选择商品展现给用户，并期待用户的正向反馈（点击、成交）。然而推荐系统并不能提前知道用户在观察到商品之后如何反馈，也就是不能提前获得本次推荐的收益，唯一能做的就是不停地尝试，并实时收集反馈以便更新自己试错的策略。目的是使得整个过程损失的收益最小。这一过程就类似与一个赌徒在赌场里玩老虎机赌博。赌徒要去摇老虎机，走进赌场一看，一排老虎机，外表一模一样，但是每个老虎机吐钱的概率可不一样，他不知道每个老虎机吐钱的概率分布是什么，那么每次该选择哪个老虎机可以做到最大化收益呢？这就是多臂赌博机问题（Multi-armed bandit problem, MAB）。</p>
+<p>MAB问题的难点是Exploitation-Exploration(E&amp;E)两难的问题：对已知的吐钱概率比较高的老虎机，应该更多的去尝试(exploitation)，以便获得一定的累计收益；对未知的或尝试次数较少的老虎机，还要分配一定的尝试机会（exploration），以免错失收益更高的选择，但同时较多的探索也意味着较高的风险（机会成本）。</p>
+<p>Bandit算法是一类用来实现Exploitation-Exploration机制的策略。根据是否考虑上下文特征，Bandit算法分为context-free bandit和contextual bandit两大类。<br><a id="more"></a></p>
+<h2 id="1-UCB"><a href="#1-UCB" class="headerlink" title="1. UCB"></a>1. UCB</h2><p>Context-free Bandit算法有很多种，比如$\epsilon-greedy$、softmax、Thompson Sampling、UCB(Upper Confidence Bound)等。</p>
+<p>在此，重点介绍一下UCB方法的基本思想。在统计学中，对于一个未知量的估计，总能找到一种量化其置信度的方法。最普遍的分布正态分布（或曰高斯分布）$N(μ,δ)$，其中的$μ$就是估计量的期望，而$δ$则表示其不确定性（$δ$越大则表示越不可信）。比如你掷一个标准的6面色子，它的平均值是3.5，而如果你只掷一次，比如说到2，那你对平均值的估计只能是2，但是这个置信度应该很低，我们可以知道，这个色子的预估平均值是2，而以95%的置信区间在[1.4,5.2]。</p>
+<p>UCB（Upper Confidence Bound - 置信上限）就是以收益（bonus）均值的置信区间上限代表对该arm未来收益的预估值：</p>
+<script type="math/tex; mode=display">\hat{\mu_i} + \sqrt{\frac{2ln(n)}{n_i}}</script><p>其中$\hat{\mu_i}$是对arm $i$期望收益的预估，$n$是总的选择次数，${n_i}$是对arm $i$的尝试次数，可以看到尝试越多，其预估值与置信上限的差值就越小，也就是越有置信度。</p>
+<p>UCB在此时的决策是选择置信区间上界最大的arm。这个策略的好处是，能让没有机会尝试的arm得到更多尝试的机会，是骡子是马拉出来溜溜！</p>
+<ul>
+<li>对于未知或较少尝试的arm，尽管其均值可能很低，但是由于其不确定性会导致置信区间的上界较大，从而有较大的概率触发exploration</li>
+<li>对于已经很熟悉的arm(尝试过较多次)，更多的是触发exploitation机制：如果其均值很高，会获得更多的利用机会；反之，则会减少对其尝试的机会</li>
+</ul>
+<h2 id="2-LinUCB"><a href="#2-LinUCB" class="headerlink" title="2. LinUCB"></a>2. LinUCB</h2><p>在推荐系统中，通常把待推荐的商品作为MAB问题的arm。UCB这样的context-free类算法，没有充分利用推荐场景的上下文信息，为所有用户的选择展现商品的策略都是相同的，忽略了用户作为一个个活生生的个性本身的兴趣点、偏好、购买力等因素都是不同的，因而，同一个商品在不同的用户、不同的情景下接受程度是不同的。故在实际的推荐系统中，context-free的MAB算法基本都不会被采用。</p>
+<p>与context-free MAB算法对应的是Contextual Bandit算法，顾名思义，这类算法在实现E&amp;E时考虑了上下文信息，因而更加适合实际的个性化推荐场景。</p>
+<p>形式化地说，在时间步$t$，<strong>contextual-bandit算法</strong>观察到当前用户$u_t$，以及每个可选择的商品（arm）$a$的特征向量$x_{t,a}$。$x_{t,a}$称之为上下文信息，它概况了用户和商品两方面的信息。算法根据之前观察到的反馈结果选择一个商品$a_t$展现给用户，并接受到用户的反馈收益$r_{t,a_t}$，$r_{t,a_t}$的期望取决于用户和商品两个方面。接着，算法根据新的观察$(x_{t,a},a_t,r_{t,a_t})$改进自身选择商品展现的策略，目标是使得整个过程中损失的收益最小，即regret值$R_A(T)$最小。$R_A(T)$的定义如下：</p>
+<script type="math/tex; mode=display">R_A(T)=E\left[ \sum_{t=1}^T r,a_t^* \right]-E\left[ \sum_{t=1}^T r,a_t \right]</script><p>其中，$T$为实验的总步数；$a_t^*$为在时间步$t$时有最大期望收益的arm，不能提前得知。</p>
+<p>LinUCB是处理Contextual Bandit的一个方法，在LinUCB中，设定每个arm的期望收益为该arm的特征向量(context)的线性函数，如下：</p>
+<p>\begin{align}<br>E\left[r_{t,a}|x_{t,a}\right] = x_{t,a}^T\theta_a<br>\end{align}</p>
+<p>$\theta_a$是LinUCB模型的参数，维度为$d$。每个arm维护一个$\theta_a$</p>
+<p>对于单个arm $a$，以其前$m$个context向量为行向量组成的矩阵称为$D_a$，维度为$m \times n$。前$m$个收益（reward）组成的向量称为$c_a$。采用平方损失函数</p>
+<script type="math/tex; mode=display">loss=\sum_{i=1}^m\left(c_{a,i}-\sum_{j=0}^d \theta_{a,j}x_{ij} \right)^2 + \lambda\sum_{j=0}^d \theta_{a,j}^2</script><p>，其中$\lambda$为正则项系数。求损失函数的最小值，令损失函数对$\theta_a$求导，结果为</p>
+<script type="math/tex; mode=display">\nabla_{\theta_a}loss=2D_a^T(c_a-D_a\theta_a)-2\lambda\theta_a</script><p>令$\nabla_{\theta_a}loss=0, \lambda=1$，可得</p>
+<script type="math/tex; mode=display">\theta_a = (D_a^TD_a + I)^{-1}D_a^Tc_a</script><p>使用岭回归（ridge regression）方法，可以得到$\theta_a$的概率分布为高斯分布：</p>
+<p>\begin{align}<br>\theta_a \sim N \left((D_a^TD_a + I)^{-1}D_a^Tc_a, (D_a^TD_a + I)^{-1}\right)<br>\end{align}</p>
+<p>为了符号简洁，令</p>
+<p>\begin{align}<br>\hat{\theta}_a &amp;= (D_a^TD_a + I)^{-1}D_a^Tc_a \\<br>A_a &amp;= D_a^TD_a + I<br>\end{align}</p>
+<p>于是$\theta_a$的概率分布可表示为$\theta_a \sim N(\hat{\theta}_a, A_a^{-1})$</p>
+<p>于是在第$t$次时可以得到<script type="math/tex">x_{t,a}^T\theta_a \sim N(x_{t,a}^T\hat{\theta}_a, x_{t,a}^TA_a^{-1}x_{t,a})</script>，也就是<script type="math/tex">r_{t,a} \sim N(x_{t,a}^T\hat{\theta}_a, x_{t,a}^TA_a^{-1}x_{t,a})</script></p>
+<p>根据高斯分布的性质，得到置信上界后就可以使用普通UCB规则了，即每次选择 $x_{t,a}^T\hat{\theta}_a + \alpha \sqrt{x_{t,a}^TA_a^{-1}x_{t,a})}$最大的arm。</p>
+<p>需要注意的是，$A_a$与$D_a^Tc_a$可以增量异步更新，于是标准流程如下：</p>
+<ul>
+<li>设定$\alpha$</li>
+<li>For $t$ = 1,2,3,…<ul>
+<li>对所有的arm获得本次的context向量</li>
+<li>For all $a$<ul>
+<li>if $a$ is new<ul>
+<li>设置$A_a$为单位矩阵</li>
+<li>设置$b_a$为$d$维零向量</li>
+</ul>
+</li>
+<li>计算$\hat{\theta}_a = A_a^{-1}b_a$</li>
+<li>计算上界 $p_{t,a}=x_{t,a}^T\hat{\theta}_a + \alpha \sqrt{x_{t,a}^TA_a^{-1}x_{t,a})}$</li>
+</ul>
+</li>
+<li>选择最大上界$p_{t,a}$对应的arm即$a_t$，并得到对应的$r_t$</li>
+<li>更新$A_{a_t} = A_{a_t} + x_{t,a_t}x_{t,a_t}^T$</li>
+<li>更新$b_{a_t} = b_{a_t} + r_tx_{t,a_t}$</li>
+</ul>
+</li>
+</ul>
+<p>LinUCB算法的优势：</p>
+<ul>
+<li>计算复杂度与arm的数量成线性关系</li>
+<li>支持动态变化的候选arm集合</li>
+</ul>
+<h2 id="3-业务场景介绍"><a href="#3-业务场景介绍" class="headerlink" title="3. 业务场景介绍"></a>3. 业务场景介绍</h2><p>在我们的电商平台App首页，有一个商品瀑布流推荐场景，每次大概展示30个商品左右。商品候选集都是运营人工精选的历史销售情况较好，在更多流量刺激下有可能成为爆款的商品，并且每天都会汰换掉一部分，加入一些新品进来。</p>
+<p>用过实现LinUcb算法，系统会对每个商品做充分的exploration和exploitation，从而发掘出真正有销售潜力的商品，逐渐淘汰掉不够理想的商品，纠正运营人工选品的局限。经过考验的商品，说明在一段时间内销量还是不错的，这些商品运营可以深度控价，要求商家提供更多的优惠和让利给用户，从而形成良性循环，同时也给其他商家树立标杆，促进平台更加健康地发展。</p>
+<h2 id="4-系统架构"><a href="#4-系统架构" class="headerlink" title="4. 系统架构"></a>4. 系统架构</h2><p>在我们的系统中，LinUCB算法的实现分为两个部分：一部分实现在推荐引擎里，主要完成特征向量提取、获取每个商品的$A_a$矩阵和$b_a$向量数据、完成置信区间上届的计算、并选择最终展现的商品；另一部分逻辑实现在实时计算平台Storm上，这部分任务实时解析场景的曝光、点击和购买行为日志，每条日志里包含了商品ID、时间戳和特征向量等信息，根据公式更新每个商品的$A_a$矩阵和$b_a$向量，并把更新后的结果写到Redis缓存里，供推荐引擎获取。</p>
+<p><img src="/linucb/LinUCB.png" alt="linucb"></p>
+<h2 id="5-核心代码逻辑"><a href="#5-核心代码逻辑" class="headerlink" title="5. 核心代码逻辑"></a>5. 核心代码逻辑</h2><p>每个商品都维护一个队列queue，用于临时存放接受到的行为事件。之所以不在接受到事情的时候立马处理掉，主要有两个原因：一是用户对每个展现商品的反馈并不是原子操作，比如反馈是曝光未点击，或是曝光且点击但未购买，还是即曝光又点击最后还购买了，这些操作不是一步就能完成的，而是保护了好几步，因此在仅仅收到曝光事情或者点击事情时，我们不知道用户的反馈序列操作有没有结束，也就不能准确设置反馈的收益值；二是由于客户端对曝光事情有缓存不是实时上报的，因而不能保证曝光事情一定在点击事情之前被上传到日志服务器。</p>
+<p>具体实现时，设置一个时间间隔（比如，5分钟），一个曝光或者点击事情到达Storm计算节点时，先缓存在队列里，等待设置好的时间间隔后，再消费掉。如果在时间间隔内高优先级的事情到达，则会直接移除掉低优先级的事情。优先级顺序为购买大于点击、点击大于曝光。另外，为了防止日志重复上报，还会根据推荐引擎的请求ID（不同请求不同）对接受到是事情去重。当然，为了容错，如果预设的事情队列满了，则会动态把时间间隔缩短为原来的二分之一，把新的时间间隔之前的事情强制消费掉，这个过程会递归执行，直到队列的长度小于预设的大小为止。</p>
+<p>Storm任务中，某个商品的参数（$A_a$矩阵和$b_a$向量）更新逻辑：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">public int consume(Event newEvent, Config config) &#123;</span><br><span class="line">    if (newEvent.getPid() !&#x3D; pid)</span><br><span class="line">        return -1;</span><br><span class="line"></span><br><span class="line">    reset(config);</span><br><span class="line"></span><br><span class="line">    int showConsumedCount &#x3D; 0;</span><br><span class="line">    int clickConsumedCount &#x3D; 0;</span><br><span class="line">    long current &#x3D; System.currentTimeMillis();</span><br><span class="line">    Iterator&lt;Event&gt; iter &#x3D; queue.iterator();</span><br><span class="line">    while (iter.hasNext()) &#123;</span><br><span class="line">        Event event &#x3D; iter.next();</span><br><span class="line">        if (event.isSameFlow(newEvent)) &#123;</span><br><span class="line">            if (newEvent.isShow()) &#123;</span><br><span class="line">                newEvent &#x3D; null; &#x2F;&#x2F; 重复曝光，或者点击事件在曝光事件前到达</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">            if (newEvent.isClick() &amp;&amp; event.isClick()) &#123;</span><br><span class="line">                newEvent &#x3D; null; &#x2F;&#x2F; 重复点击事件</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">            iter.remove(); &#x2F;&#x2F; 高优先级的事情会覆盖低优先级的事情</span><br><span class="line">            if (null &#x3D;&#x3D; newEvent.getItemTrackData()) &#123;</span><br><span class="line">                newEvent.setItemTrackData(event.getItemTrackData());</span><br><span class="line">            &#125;</span><br><span class="line">            continue;</span><br><span class="line">        &#125;</span><br><span class="line">        if (current - event.getTimestamp() &lt; config.cacheTimeSpan)</span><br><span class="line">            continue;</span><br><span class="line"></span><br><span class="line">        INDArray xt &#x3D; event.getFeature(config);</span><br><span class="line">        INDArray x &#x3D; xt.transpose();</span><br><span class="line">        A.addi(x.mmul(xt));</span><br><span class="line">        double reward &#x3D; event.getReward();</span><br><span class="line">        if (reward &gt; 0.0)</span><br><span class="line">            b.addi(x.muli(reward));</span><br><span class="line">        iter.remove();</span><br><span class="line">        if (event.isShow())</span><br><span class="line">            showConsumedCount ++;</span><br><span class="line">        else if (event.isClick())</span><br><span class="line">            clickConsumedCount ++;</span><br><span class="line">    &#125;</span><br><span class="line">    if (null &#x3D;&#x3D; newEvent)</span><br><span class="line">        return 0;</span><br><span class="line">    if (newEvent.getType().equals(EventType.BUY)) &#123;</span><br><span class="line">        &#x2F;&#x2F; 购买事情立即消费</span><br><span class="line">        INDArray xt &#x3D; newEvent.getFeature(config);</span><br><span class="line">        if (null &#x3D;&#x3D; xt) &#123;</span><br><span class="line">            LogPushUtil.push(&quot;BuyFeatureMissingEvent&quot;);</span><br><span class="line">        &#125;</span><br><span class="line">        else if (xt.length() &#x3D;&#x3D; b.length()) &#123;</span><br><span class="line">            INDArray x &#x3D; xt.transpose();</span><br><span class="line">            A.addi(x.mmul(xt));</span><br><span class="line">            double reward &#x3D; newEvent.getReward();</span><br><span class="line">            b.addi(x.muli(reward));</span><br><span class="line">            LogPushUtil.push(&quot;BuyEventConsumed&quot;);</span><br><span class="line">            records +&#x3D; config.updateRecords;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else if (StringUtils.isNotEmpty(newEvent.getItemTrackData())) &#123;</span><br><span class="line">        queue.add(newEvent);</span><br><span class="line">        checkQueueIsFullOrNot(config.cacheTimeSpan &#x2F; 2, config);</span><br><span class="line">    &#125;</span><br><span class="line">    if (showConsumedCount &gt; 0) &#123;</span><br><span class="line">        records +&#x3D; showConsumedCount;</span><br><span class="line">        LogPushUtil.push(&quot;ShowEventConsumed&quot;, showConsumedCount);</span><br><span class="line">    &#125;</span><br><span class="line">    if (clickConsumedCount &gt; 0) &#123;</span><br><span class="line">        records +&#x3D; clickConsumedCount;</span><br><span class="line">        LogPushUtil.push(&quot;ClickEventConsumed&quot;, clickConsumedCount);</span><br><span class="line">    &#125;</span><br><span class="line">    if (records &gt;&#x3D; config.updateRecords) &#123;</span><br><span class="line">        writeToRedis(config);</span><br><span class="line">    &#125;</span><br><span class="line">    return records;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在线推荐引擎计算每个商品的ucb分数的代码如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line">private void parallelGetLinUcbScore(Session session, INDArray features, List&lt;Item&gt; items) throws InterruptedException &#123;</span><br><span class="line">    int concurrency &#x3D; Math.min(session.config.linUcbConcurrency, items.size());</span><br><span class="line">    int num &#x3D; items.size() &#x2F; concurrency;</span><br><span class="line"></span><br><span class="line">    ExecutorService es &#x3D; session.context.getThreadExecutorService(session.reqId, session.reqId.getSceneId());</span><br><span class="line">    final CountDownLatch countDownLatch &#x3D; new CountDownLatch(concurrency);</span><br><span class="line">    int left &#x3D; items.size() - num * concurrency;</span><br><span class="line">    int start &#x3D; 0, end &#x3D; num;</span><br><span class="line">    for (int i &#x3D; 0; i &lt; concurrency; ++i) &#123;</span><br><span class="line">        if (i &lt; left)</span><br><span class="line">            end++;</span><br><span class="line">        Logger.debug(&quot;prepare to start linucb score sub thread: [&quot; + start + &quot;, &quot; + end + &quot;]&quot;);</span><br><span class="line">        int finalStart &#x3D; start;</span><br><span class="line">        int finalEnd &#x3D; end;</span><br><span class="line">        Runnable runnable &#x3D; () -&gt; &#123;</span><br><span class="line">            long startTime &#x3D; System.currentTimeMillis();</span><br><span class="line">            try &#123;</span><br><span class="line">                getLinUcbScore(session, features, items, finalStart, finalEnd);</span><br><span class="line">            &#125; catch (Exception e) &#123;</span><br><span class="line">                String exception &#x3D; ExceptionUtils.getFullStackTrace(e);</span><br><span class="line">                Logger.error(&quot;linucb worker exception:&quot;, exception);</span><br><span class="line">            &#125;</span><br><span class="line">            finally &#123;</span><br><span class="line">                countDownLatch.countDown();</span><br><span class="line">            &#125;</span><br><span class="line">            long time &#x3D; System.currentTimeMillis() - startTime;</span><br><span class="line">            Logger.info(&quot;[Timer] compute sub linUcb scores [&quot;, finalStart, &quot;, &quot;, finalEnd, &quot;] taken&quot;, time, &quot;ms&quot;);</span><br><span class="line">        &#125;;</span><br><span class="line">        es.execute(TtlRunnable.get(runnable));</span><br><span class="line">        start &#x3D; end;</span><br><span class="line">        end &#x3D; start + num;</span><br><span class="line">    &#125;</span><br><span class="line">    countDownLatch.await(session.config.linUcbTimeOut, TimeUnit.MILLISECONDS);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private void getLinUcbScore(Session session, INDArray features, List&lt;Item&gt; items, int start, int end) throws IOException &#123;</span><br><span class="line">    if (items.isEmpty() || null &#x3D;&#x3D; features)</span><br><span class="line">        return;</span><br><span class="line">    StopWatch stopWatch &#x3D; StopWatch.CreateStopWatchAndStart();</span><br><span class="line">    for (int i &#x3D; start; i &lt; end; ++i) &#123;</span><br><span class="line">        stopWatch.restart();</span><br><span class="line">        Item item &#x3D; items.get(i);</span><br><span class="line">        long pid &#x3D; item.getProductId();</span><br><span class="line">        byte[] matrix &#x3D; getLinUcbMatrix(session, pid);</span><br><span class="line"></span><br><span class="line">        INDArray feature &#x3D; features.getRow(i);</span><br><span class="line">        INDArray featureT &#x3D; feature.transpose();</span><br><span class="line">        Logger.detail(&quot;&lt;&quot;, i, &quot;&gt;&quot;, pid, &quot;item feature:&quot;, item.getTrackInfo(), &quot;vector:&quot;, feature);</span><br><span class="line">        if (matrix &#x3D;&#x3D; null) &#123;</span><br><span class="line">            double p &#x3D; session.config.linUcbAlpha * FastMath.sqrt(feature.mmul(featureT).getDouble(0));</span><br><span class="line">            item.setMatchScore(p);</span><br><span class="line">            Logger.info(&quot;&lt;&quot;, i, &quot;&gt; linucb new item:&quot;, pid, &quot;ucb score:&quot;, p);</span><br><span class="line">            continue;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ByteArrayInputStream in &#x3D; new ByteArrayInputStream(matrix);</span><br><span class="line">        INDArray[] Ab &#x3D; ByteSerde.fromByteArrayStream(in);</span><br><span class="line">        if (Ab.length &lt; 2)</span><br><span class="line">            continue;</span><br><span class="line">        INDArray invertA &#x3D; Ab[0];</span><br><span class="line">        INDArray b &#x3D; Ab[1];</span><br><span class="line">        Logger.detail(&quot;&lt;&quot;, i, &quot;&gt;&quot;, pid, &quot;[Timer] fetch matrix taken&quot;, stopWatch.click(), &quot;ms&quot;);</span><br><span class="line">        if (b.length() !&#x3D; feature.length()) &#123;</span><br><span class="line">            Logger.error(&quot;the length of b is&quot;, b.length(), &quot;should be&quot;, feature.length());</span><br><span class="line">            double p &#x3D; session.config.linUcbAlpha * FastMath.sqrt(feature.mmuli(featureT).getFloat(0));</span><br><span class="line">            item.setMatchScore(p);</span><br><span class="line">            continue;</span><br><span class="line">        &#125;</span><br><span class="line">        INDArray theta &#x3D; invertA.mmul(b);</span><br><span class="line">        INDArray thetaX &#x3D; theta.transposei().mmul(featureT);</span><br><span class="line">        INDArray temp &#x3D; feature.mmuli(invertA).mmul(featureT);</span><br><span class="line">        double p &#x3D; thetaX.getDouble(0);</span><br><span class="line">        item.setPreferScore(p);</span><br><span class="line">        p +&#x3D; session.config.linUcbAlpha * FastMath.sqrt(temp.getDouble(0));</span><br><span class="line">        item.setMatchScore(p);</span><br><span class="line">        Logger.detail(&quot;&lt;&quot;, i, &quot;&gt;&quot;, pid, &quot;[Timer] one iteration linucb score taken&quot;, stopWatch.click(), &quot;ms. match score:&quot;, p);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>实现中矩阵计算的部分，用了ND4J（<a target="_blank" rel="noopener" href="https://nd4j.org/）的库。">https://nd4j.org/）的库。</a></p>
+<h2 id="6-业务效果"><a href="#6-业务效果" class="headerlink" title="6. 业务效果"></a>6. 业务效果</h2><p>经过线上充分的A/B测试，最终测得LinUCB算法的UV CTR相对基准桶提升25%+，UV价值提升20%+。并且算法能够很好地支持商品动态上下架。</p>
+<h2 id="7-参考资料"><a href="#7-参考资料" class="headerlink" title="7. 参考资料"></a>7. 参考资料</h2><p>[Lihong Li, et al, 2010] A Contextual-Bandit Approach to Personalized News Article Recommendation.</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" rel="tag"># 推荐系统</a>
+              <a href="/tags/LinUCB/" rel="tag"># LinUCB</a>
+              <a href="/tags/%E5%9C%A8%E7%BA%BF%E5%AD%A6%E4%B9%A0/" rel="tag"># 在线学习</a>
+              <a href="/tags/E-E/" rel="tag"># E&E</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/item-pop-score/" rel="prev" title="商品人气分模型">
+      <i class="fa fa-chevron-left"></i> 商品人气分模型
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/esmm/" rel="next" title="完整空间多任务模型：CVR预估的有效方法">
+      完整空间多任务模型：CVR预估的有效方法 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-UCB"><span class="nav-number">1.</span> <span class="nav-text">1. UCB</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-LinUCB"><span class="nav-number">2.</span> <span class="nav-text">2. LinUCB</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E4%B8%9A%E5%8A%A1%E5%9C%BA%E6%99%AF%E4%BB%8B%E7%BB%8D"><span class="nav-number">3.</span> <span class="nav-text">3. 业务场景介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84"><span class="nav-number">4.</span> <span class="nav-text">4. 系统架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E6%A0%B8%E5%BF%83%E4%BB%A3%E7%A0%81%E9%80%BB%E8%BE%91"><span class="nav-number">5.</span> <span class="nav-text">5. 核心代码逻辑</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E4%B8%9A%E5%8A%A1%E6%95%88%E6%9E%9C"><span class="nav-number">6.</span> <span class="nav-text">6. 业务效果</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">7.</span> <span class="nav-text">7. 参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

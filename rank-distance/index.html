@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="在某些情况下，我们需要度量两个排序列表的距离，或者说相似程度。比如，在信息检索领域，我们可能需要计算在某个查询条件下系统给出的文档的排序列表与一个预先定义好的“完美”排序列表的接近程度。或者我们可能需要比较不同搜索引擎的结果。又或者，在推荐系统中，我们需要监控某次算法迭代（A&#x2F;B测试）中，新算法针对某个用户给出的推荐列表与旧算法给出的推荐列表的差异程度，以便决定是否要触发自动报警。 在信息检索领域">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何度量两个排序列表的相似性？">
+<meta property="og:url" content="http://xudongyang.coding.me/rank-distance/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="在某些情况下，我们需要度量两个排序列表的距离，或者说相似程度。比如，在信息检索领域，我们可能需要计算在某个查询条件下系统给出的文档的排序列表与一个预先定义好的“完美”排序列表的接近程度。或者我们可能需要比较不同搜索引擎的结果。又或者，在推荐系统中，我们需要监控某次算法迭代（A&#x2F;B测试）中，新算法针对某个用户给出的推荐列表与旧算法给出的推荐列表的差异程度，以便决定是否要触发自动报警。 在信息检索领域">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://xudongyang.coding.me/rank-distance/tau.jpg">
+<meta property="og:image" content="http://xudongyang.coding.me/rank-distance/tau_weight.jpg">
+<meta property="og:image" content="http://xudongyang.coding.me/rank-distance/footrule.jpg">
+<meta property="og:image" content="http://xudongyang.coding.me/rank-distance/footrule_weight.jpg">
+<meta property="article:published_time" content="2019-04-22T02:35:38.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.916Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="等级相关">
+<meta property="article:tag" content="距离度量">
+<meta property="article:tag" content="排序">
+<meta property="article:tag" content="相似性">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://xudongyang.coding.me/rank-distance/tau.jpg">
+
+<link rel="canonical" href="http://xudongyang.coding.me/rank-distance/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>如何度量两个排序列表的相似性？ | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/rank-distance/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          如何度量两个排序列表的相似性？
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-04-22 10:35:38" itemprop="dateCreated datePublished" datetime="2019-04-22T10:35:38+08:00">2019-04-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/rank-distance/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/rank-distance/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在某些情况下，我们需要度量两个排序列表的距离，或者说相似程度。比如，在信息检索领域，我们可能需要计算在某个查询条件下系统给出的文档的排序列表与一个预先定义好的“完美”排序列表的接近程度。或者我们可能需要比较不同搜索引擎的结果。又或者，在推荐系统中，我们需要监控某次算法迭代（A/B测试）中，新算法针对某个用户给出的推荐列表与旧算法给出的推荐列表的差异程度，以便决定是否要触发自动报警。</p>
+<p>在信息检索领域，我们常用MAP、MRR、NDCG来评估排序算法的好坏，然而这些指标依赖人工标注的query与document的相关性档位（relevance level）。当没有此标注数据，或者我们要评估的排序列表跟相关性无关，并且我们刚好有一个待比较的基准列表时，该如何评估它们之间的距离呢？how to measure the similarity between two rank list?</p>
+<p>定义这样一个排序列表之间比较的指标，我们期待它能满足以下几个方面：</p>
+<ul>
+<li>丰富度（Richness）<ul>
+<li>能够支持元素加权、位置加权等</li>
+<li>Support element weights, position weights, etc.</li>
+</ul>
+</li>
+<li>简洁性（Simplicity）<ul>
+<li>易于理解</li>
+<li>Be simple to understand</li>
+</ul>
+</li>
+<li>普适性（Generalization）<ul>
+<li>也能支持不考虑权重的情况 </li>
+<li>Collapse to a natural metric with no weights are present</li>
+<li>Should behave similar to other approaches</li>
+<li>Allows us to select a metric best suited to the problem</li>
+</ul>
+</li>
+<li>满足距离定义的基本属性（Satisfy Basic Properties）<ul>
+<li>Scale free, invariant under relabeling, triangle inequality…</li>
+</ul>
+</li>
+</ul>
+<p>排序列表距离度量大致可以分为两大类方法: (1) 基于排序之间的相互关系（Ranked Correlation）；(2) 基于集合的度量（Set Based Measure）。</p>
+<a id="more"></a>
+<h2 id="一、Rank-Correlation"><a href="#一、Rank-Correlation" class="headerlink" title="一、Rank Correlation"></a>一、Rank Correlation</h2><p>基于Rank correlation的距离度量方法本质上是量化任意两个不同元素在两个待比较的排序列表中的相对位置，例如，两者保持相同顺序的概率等。</p>
+<h3 id="1-肯德尔等级相关系数（Kendall-Tau）"><a href="#1-肯德尔等级相关系数（Kendall-Tau）" class="headerlink" title="1. 肯德尔等级相关系数（Kendall Tau）"></a>1. 肯德尔等级相关系数（Kendall Tau）</h3><p>我们可以用逆序对数量来量化两个排序列表的不一致程度。</p>
+<blockquote>
+<p>设 A 为一个有 n 个数字的有序集 (n&gt;1)，其中所有数字各不相同。如果存在正整数 i, j 使得 1 ≤ i &lt; j ≤ n 而且 A[i] &gt; A[j]，则 <A[i], a[j]> 这个有序对称为 A 的一个逆序对，也称作逆序数。</A[i],></p>
+</blockquote>
+<p>逆序数有时候也叫做肯德尔等级相关系数。直接用逆序数来度量量列表之间的距离有个问题，就是不同长度的列表scale不一致。然而，多数情况下，我们希望用一个统一的量纲来度量列表距离。</p>
+<p><img src="/rank-distance/tau.jpg" alt></p>
+<p>现在我们常把肯德尔等级相关系数定义为统一量纲的版本，即两个列表正序对的概率减去逆序对的概率，比如，计算元素A在列表1中排在元素B前面，那么在列表2中元素A依然排在元素B前面的概率，具体值可以通过下面的公式计算：</p>
+<script type="math/tex; mode=display">\tau = P(C)-P(D)=\frac{C}{N}-\frac{D}{N}=\frac{C-D}{N}</script><p>其中，$N$是总的元素对数量，当列表有$n$个元素时，$N=\frac{1}{2}n(n-1)$；$C$是在两个列表中相对顺序保持一致的元素对数量；$D$是在两个列表中相对顺序不一致的元素对数量。</p>
+<p>有时候列表中元素的重要性是不同的，交换两个重要的元素之间的相对位置比交换两个不那么重要的元素之间的相对位置影响要大很多。那么，如何在度量列表排序相似度的时候，考虑元素的权重呢？</p>
+<p>一种方法是把权重为$w$的元素理解为有$w$个权重为1的元素连在一起构成一个整体，如下图：</p>
+<p><img src="/rank-distance/tau_weight.jpg" alt></p>
+<h3 id="2-Spearman’s-Footrule"><a href="#2-Spearman’s-Footrule" class="headerlink" title="2. Spearman’s Footrule"></a>2. Spearman’s Footrule</h3><p>Spearman’s Footrule是两个排序列表之间的绝对距离，类似于文本编辑距离，度量把一个列表修改为另一个列表最少需要移动各个元素的距离的总和。</p>
+<p>例如，假设<code>A=[1,2,3];B=[2,1,3]</code>,则A和B的Footrule距离为$d_{AB}=|1-2|+|2-1|+|3-3|=2$。</p>
+<p>Footrule距离可以理解为在$n$为空间上把其中一个点沿着坐标轴的方向移动到另外一个点最少需要移动的距离之和。</p>
+<p><img src="/rank-distance/footrule.jpg" alt></p>
+<p>Spearman’s Footrule距离度量也可以考虑元素权重，可以参考与Kendall Tau一致的方法。</p>
+<p><img src="/rank-distance/footrule_weight.jpg" alt></p>
+<h2 id="二、Set-Based-Measure"><a href="#二、Set-Based-Measure" class="headerlink" title="二、Set Based Measure"></a>二、Set Based Measure</h2><p>基于集合的方法通过在计算两个不同排序列表在不同深度时对应集合的交集大小来计算排序列表的相似度。假设我们有两个列表：</p>
+<blockquote>
+<p>A: [a, b, c, d, e]<br>B: [b, a, c, d, e]</p>
+</blockquote>
+<p>依次计算它们前k个元素组成的两个集合的交集，以及交集大小相对于当前深度的比例。</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>深度</th>
+<th>列表A的前k个元素</th>
+<th>列表B的前k个元素</th>
+<th>交集</th>
+<th>比例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>a</td>
+<td>b</td>
+<td>{}</td>
+<td>0/1=0</td>
+</tr>
+<tr>
+<td>2</td>
+<td>a,b</td>
+<td>b,a</td>
+<td>{a,b}</td>
+<td>2/2 = 1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>a,b,c</td>
+<td>b,a,c</td>
+<td>{a,b,c}</td>
+<td>3/3 = 1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>a,b,c,d</td>
+<td>b,a,c,d</td>
+<td>{a,b,c,d}</td>
+<td>4/4 = 1</td>
+</tr>
+<tr>
+<td>5</td>
+<td>a,b,c,d,e</td>
+<td>b,a,c,d,e</td>
+<td>{a,b,c,d,e}</td>
+<td>5/5 = 1</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>一旦计算出不同深度的交集比例后，我们就可以通过交集比例的分布来量化两个列表的相似程度，最简单的方式就是直接计算交集比例的平均值。在上面的例子中，当列表长度为5时，列表A和B的相似度为 4/5=0.8。</p>
+<p>一般情况下，排序越靠前的位置的元素的权重越高。比如搜索引擎的结果，我们一般只关注排在最前面的文档的相对顺序，而排在后面的文档一般不太关注。在中国互联网公司实力排行榜上我们通常也只会关注那些Top的公司的相对顺序，而不太关心几百名之后的公司如何排名。因此，我们希望在比较两个排序列表的相似性时，能够考虑不同位置的元素的权重，尤其是关注top元素的相对位置权重。</p>
+<p>假设我们另外有一列表<code>C: [a, b, c, e, d]</code>，与列表A比较后发现，列表C是通过交换列表A的最好两个元素的位置得到的；而列表B是通过交换列表A的前2个元素的位置得到的。基于Set Based Measure，我们发现列表C与列表A的相似度为(1+1+1+0.75+1)/5=0.95，大于列表B与列表A的相似度（0.8），这正是我们所期望的。</p>
+<p>综上，Set Based Measure天然带有top-weighteness属性。</p>
+<ul>
+<li>RBO(Rank Biased Overlap)</li>
+</ul>
+<p>Rank Biased Overlap 距离度量方法进一步拓展了上述Set Based的方法。上述Naive的Set Based Measure方法计算出的距离是没有上界的，随着列表长度的不断增加，有可能距离值会无穷大。为了解决这个问题，RBO给每个深度的交集比例定义了一个权重系数，最后计算结果时是加权和，而不是原来的平均值。</p>
+<p>当然，不是任意的权重值分布都能保证距离收敛。RBO选择了几何序列来保证这一点，具体地，RBO在无限长度的列表上计算两个排序列表的步骤如下：</p>
+<p>假设$S$和$T$为两个无限长度的排序列表，$S_i$为列表$S$的第$i$个元素，$S_{c:d}=\{ S_i : c \leq i \leq d \}$表示列表中从位置$c$到位置$d$的所有元素组成的集合。在深度为$d$时，列表S和T的交集为：</p>
+<script type="math/tex; mode=display">I_d=S_{1:d} \cap T_{1:d}</script><p>交集的元素个数称之为列表S和T在深度为d时的交叠（overlap），该overlap相对于深度$d$的比值称之为列表S和T的一致度（agreement）。</p>
+<script type="math/tex; mode=display">A_d=\frac{|I_d|}{d}=\frac{|S_{1:d} \cap T_{1:d}|}{d}</script><p>之前介绍的Naive Set Based Measure实际上是在计算平均交叠，即$AO(S,T,k)=\frac{1}{k} \sum_{d=1}^{k} A_d$，其中$k$是需要计算的深度。</p>
+<p>RBO不再简单地计算平均交叠，而是给每个深度的一致度一个权重$w_d$，再计算加权和:</p>
+<script type="math/tex; mode=display">SIM(S,T,w)=\sum_{d=1}^{\infty} w_d \cdot A_d</script><p>定义权重$w_d=(1-p)\cdot p^{d-1}$，则$\sum_d w_d = 1$，因为当$0&lt;p&lt;1$时，几何级数$p^{d-1}$收敛到$\frac{1}{1-p}$，即<script type="math/tex">\sum_{d=1}^{\infty} p^{d-1} = \frac{1}{1-p}</script></p>
+<p>根据定义，$A_d$是小于1的，则有$0 \leq SIM \leq \sum_d w_d &lt; 1$。</p>
+<p>至此，RBO距离度量方法可以定义为：</p>
+<script type="math/tex; mode=display">RBO(S,T,p)=(1-p)\sum_{d=1}^{\infty}p^{d-1} \cdot A_d</script><p>其中$p$是一个可以预先定下来的参数。可以看到RBO指标是有界的，值在0~1的范围之间，并且RBO指标还带有top-weighteness属性。</p>
+<p>RBO指标有很好的性质，非常适合用来度量两个排序列表的相似度，强烈推荐！</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://ragrawal.wordpress.com/2013/01/18/comparing-ranked-list/">Comparing Ranked List</a></li>
+<li><a target="_blank" rel="noopener" href="http://codalism.com/research/papers/wmz10_tois.pdf">A Similarity Measure for Indefinite Rankings</a></li>
+<li><a target="_blank" rel="noopener" href="http://ciir-publications.cs.umass.edu/pdf/IR-649.pdf">Rank Correlation and Distance Between Rankings</a></li>
+<li><a target="_blank" rel="noopener" href="https://weirping.github.io/blog/Metrics-in-IR.html">信息检索评价指标(nDCG,MRR,MAP)</a></li>
+<li><a target="_blank" rel="noopener" href="http://theory.stanford.edu/~sergei/slides/www10-metrics.pdf">Generalized Distances Between Rankings - Stanford CS Theory</a></li>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/1207.2541">A New Weighted Spearman’s Footrule as A Measure of The Distance Between Two Rankings</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E7%AD%89%E7%BA%A7%E7%9B%B8%E5%85%B3/" rel="tag"># 等级相关</a>
+              <a href="/tags/%E8%B7%9D%E7%A6%BB%E5%BA%A6%E9%87%8F/" rel="tag"># 距离度量</a>
+              <a href="/tags/%E6%8E%92%E5%BA%8F/" rel="tag"># 排序</a>
+              <a href="/tags/%E7%9B%B8%E4%BC%BC%E6%80%A7/" rel="tag"># 相似性</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/distributed-tensorflow/" rel="prev" title="一文说清楚Tensorflow分布式训练必备知识">
+      <i class="fa fa-chevron-left"></i> 一文说清楚Tensorflow分布式训练必备知识
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/deep-metric-learning/" rel="next" title="深度度量学习中的损失函数">
+      深度度量学习中的损失函数 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81Rank-Correlation"><span class="nav-number">1.</span> <span class="nav-text">一、Rank Correlation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E8%82%AF%E5%BE%B7%E5%B0%94%E7%AD%89%E7%BA%A7%E7%9B%B8%E5%85%B3%E7%B3%BB%E6%95%B0%EF%BC%88Kendall-Tau%EF%BC%89"><span class="nav-number">1.1.</span> <span class="nav-text">1. 肯德尔等级相关系数（Kendall Tau）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Spearman%E2%80%99s-Footrule"><span class="nav-number">1.2.</span> <span class="nav-text">2. Spearman’s Footrule</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81Set-Based-Measure"><span class="nav-number">2.</span> <span class="nav-text">二、Set Based Measure</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">3.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

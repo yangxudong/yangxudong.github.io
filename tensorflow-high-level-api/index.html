@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Tensorflow高阶API简介在tensorflow高阶API（Estimator、Dataset、Layer、FeatureColumn等）问世之前，用tensorflow开发、训练、评估、部署深度学习模型，并没有统一的规范和高效的标准流程。Tensorflow的实践者们基于低阶API开发的代码在可移植性方面可能会遇到各种困难。例如，单机可以运行的模型希望改成能够分布式环境下运行需要对代码做">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于Tensorflow高阶API构建大规模分布式深度学习模型系列">
+<meta property="og:url" content="http://xudongyang.coding.me/tensorflow-high-level-api/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="Tensorflow高阶API简介在tensorflow高阶API（Estimator、Dataset、Layer、FeatureColumn等）问世之前，用tensorflow开发、训练、评估、部署深度学习模型，并没有统一的规范和高效的标准流程。Tensorflow的实践者们基于低阶API开发的代码在可移植性方面可能会遇到各种困难。例如，单机可以运行的模型希望改成能够分布式环境下运行需要对代码做">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://3.bp.blogspot.com/-l2UT45WGdyw/Wbe7au1nfwI/AAAAAAAAD1I/GeQcQUUWezIiaFFRCiMILlX2EYdG49C0wCLcBGAs/s1600/image6.png">
+<meta property="og:image" content="http://xudongyang.coding.me/tensorflow-high-level-api/estimator.png">
+<meta property="og:image" content="http://xudongyang.coding.me/tensorflow-high-level-api/estimator_types.png">
+<meta property="article:published_time" content="2018-06-25T07:00:28.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.940Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="深度学习">
+<meta property="article:tag" content="tensorflow">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://3.bp.blogspot.com/-l2UT45WGdyw/Wbe7au1nfwI/AAAAAAAAD1I/GeQcQUUWezIiaFFRCiMILlX2EYdG49C0wCLcBGAs/s1600/image6.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/tensorflow-high-level-api/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>基于Tensorflow高阶API构建大规模分布式深度学习模型系列 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/tensorflow-high-level-api/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基于Tensorflow高阶API构建大规模分布式深度学习模型系列
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-06-25 15:00:28" itemprop="dateCreated datePublished" datetime="2018-06-25T15:00:28+08:00">2018-06-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">深度学习</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/tensorflow-high-level-api/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/tensorflow-high-level-api/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.3k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="Tensorflow高阶API简介"><a href="#Tensorflow高阶API简介" class="headerlink" title="Tensorflow高阶API简介"></a>Tensorflow高阶API简介</h2><p>在tensorflow高阶API（Estimator、Dataset、Layer、FeatureColumn等）问世之前，用tensorflow开发、训练、评估、部署深度学习模型，并没有统一的规范和高效的标准流程。Tensorflow的实践者们基于低阶API开发的代码在可移植性方面可能会遇到各种困难。例如，单机可以运行的模型希望改成能够分布式环境下运行需要对代码做额外的改动，如果在一个异构的环境中训练模型，则还需要额外花精力处理哪些部分跑在CPU上，哪些部分跑在GPU上。当不同的机器有不同数量的GPU数量时，问题更加复杂。</p>
+<p>为了能够快速支持新的网络架构的实验测试，深度学习框架都很重视网络架构搭建的灵活性需求，因此能让用户随心所欲地自定义代码实现是很重要的一块功能。</p>
+<p>模型构建的灵活性与简洁性需求看似是矛盾的。从开发者的视角，简洁性意味着当模型架构确定时实现不应该需要太多额外的技能要求，不必对深度学习框架有很深刻的洞察，就能够实验不同的模型特性。在内置简洁性属性的框架下开发者能够较轻松地开发出高质量的鲁棒性较好的模型软件，不会一不小心就踩到坑里。另一方面，灵活性意味着开发者能够实现任意的想要的模型结构，这需要框架能够提供一些相对低价的API。类似于Caffe这样的深度学习框架提供了DSL（domain specific language）来描述模型的结构，虽然搭建已知的成熟的模型架构比较方便，但却不能轻松搭建任意想要的模型结构。这就好比用积木搭建房子，如果现在需要一个特殊的以前没有出现过的积木块以便搭建一个特殊的房子，那就无计可施了。</p>
+<p>Tensorflow高阶API正是为了同时满足模型构建的灵活性与简洁性需求应运而生的，它能够让开发者快速搭建出高质量的模型，又能够使用结合低阶API实现不受限制的模型结构。<br><a id="more"></a><br>下面就来看看tensorflow中有哪些常用的高阶API吧。<br><img src="https://3.bp.blogspot.com/-l2UT45WGdyw/Wbe7au1nfwI/AAAAAAAAD1I/GeQcQUUWezIiaFFRCiMILlX2EYdG49C0wCLcBGAs/s1600/image6.png" alt></p>
+<h3 id="Estimator（估算器）"><a href="#Estimator（估算器）" class="headerlink" title="Estimator（估算器）"></a>Estimator（估算器）</h3><p>Estimator类是机器学习模型的抽象，其设计灵感来自于典典大名的Python机器学习库Scikit-learn。Estimator允许开发者自定义任意的模型结构、损失函数、优化方法以及如何对这个模型进行训练、评估和导出等内容，同时屏蔽了与底层硬件设备、分布式网络数据传输等相关的细节。</p>
+<p><img src="/tensorflow-high-level-api/estimator.png" alt></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">tf.estimator.Estimator(</span><br><span class="line">    model_fn&#x3D;model_fn,  # First-class function</span><br><span class="line">    params&#x3D;params,  # HParams</span><br><span class="line">    config&#x3D;run_config  # RunConfig</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>要创建Estimator，需要传入一个模型函数、一组参数和一些配置。</p>
+<ul>
+<li>传入的参数应该是模型超参数的一个集合，可以是一个dictionary。</li>
+<li>传入的配置用于指定模型如何运行训练和评估，以及在哪里存储结果。这个配置是一个RunConfig对象，该对象会把模型运行环境相关的信息告诉Estimator。</li>
+<li>模型函数是一个Python函数，它根据给定的输入构建模型。</li>
+</ul>
+<p>Estimator类有三个主要的方法：train/fit、evaluate、predict，分别表示模型的训练、评估和预测。三个方法都接受一个用户自定义的输入函数input_fn，执行input_fn获取输入数据。Estimator的这三个方法最终都会调用模型函数（model_fn）执行具体的操作，不同方法被调用时，传递给model_fn的mode参数也是不同的，如下一小节中描述的那样，mode参数是让用户在编写模型函数时知道当前定义的操作是用在模型生命周期的哪一个阶段。</p>
+<p>Tensorflow本身还提供了很多内置的开箱即用的Estimator，内置的 Estimator 是 tf.estimator.Estimator 基类的子类，而自定义 Estimator 是 tf.estimator.Estimator 的实例，如下图所示。<br><img src="/tensorflow-high-level-api/estimator_types.png" alt></p>
+<h3 id="模型函数"><a href="#模型函数" class="headerlink" title="模型函数"></a>模型函数</h3><p>模型函数是用户自定义的一个python函数，它定义了模型训练、评估和预测所需的计算图节点（op）。</p>
+<p>模型函数接受输入特征和标签作为参数，同时用mode参数来告知用户模型是在训练、评估或是在执行推理。mode是tf.estimator.ModeKeys对象，它有三个可取的值：TRAIN、EVAL、PREDICT。模型函数的最后一个参数是超参数集合，它们与传递给Estimator的超参数集合相同。模型函数返回一个EstimatorSpec对象，该对象定义了一个完整的模型。EstimatorSpec对象用于对操作进行预测、损失、训练和评估，因此，它定义了一个用于训练、评估和推理的完整的模型图。</p>
+<p>一个简单的模型函数示例如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">def model_fn(features, target, mode, params)</span><br><span class="line">  predictions &#x3D; tf.stack(tf.fully_connected, [50, 50, 1])</span><br><span class="line">  loss &#x3D; tf.losses.mean_squared_error(target, predictions)</span><br><span class="line">  train_op &#x3D; tf.train.create_train_op(</span><br><span class="line">    loss, tf.train.get_global_step(),</span><br><span class="line">    params[’learning_rate’], params[’optimizer’])</span><br><span class="line">  return EstimatorSpec(mode&#x3D;mode,</span><br><span class="line">                       predictions&#x3D;predictions,</span><br><span class="line">                       loss&#x3D;loss,</span><br><span class="line">                       train_op&#x3D;train_op)</span><br></pre></td></tr></table></figure>
+<h3 id="Dataset（数据集）"><a href="#Dataset（数据集）" class="headerlink" title="Dataset（数据集）"></a>Dataset（数据集）</h3><p>在tensorflow中，构建模型输入流水线的最佳实践就是使用Dataset API。Dataset API底层使用C++实现，能够绕过python的一些性能限制，性能很好。</p>
+<p>Dataset是对训练、评估、预测阶段所用的数据的抽象表示，其提供了数据读取、解析、打乱（shuffle）、过滤、分批（batch）等操作，是构建模型输入管道的利器，我将会在另外一篇文章《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/38421397">基于Tensorflow高阶API构建大规模分布式深度学习模型系列：基于Dataset API处理Input pipeline</a>》中详细介绍。</p>
+<h3 id="Feature-Columns（特征列）"><a href="#Feature-Columns（特征列）" class="headerlink" title="Feature Columns（特征列）"></a>Feature Columns（特征列）</h3><p>Feature Columns是特征工程的利器，其能够方便地把原始数据转换为模型的输入数据，并提供了一些常用的数据变换操作，如特征交叉、one-hot编码、embedding编码等。关于Feature Column，也将会在另外一篇文章中详细介绍。</p>
+<h3 id="Layers"><a href="#Layers" class="headerlink" title="Layers"></a>Layers</h3><p>Layer是一组简单的可重复利用的代码，表示神经网络模型中的“层”这个概率。Tensorflow中的layer可以认为是一系列操作（op）的集合，与op一样也是输入tensor并输出tensor的（tensor-in-tensor-out)。Tensorflow中即内置了全连接这样的简单layer，也有像inception网络那样的复杂layer。使用layers来搭建网络模型会更加方便。</p>
+<h3 id="Head"><a href="#Head" class="headerlink" title="Head"></a>Head</h3><p>Head API对网络最后一个隐藏层之后的部分进行了抽象，它的主要设计目标是简化模型函数（model_fn）的编写。Head知道如何计算损失（loss）、评估度量标准（metric)、预测结果（prediction）。为了支持不同的模型，Head接受logits和labels作为参数，并生成表示loss、metric和prediction的张量。有时为了避免计算完整的logit张量，Head也接受最后一个隐藏的激活值作为输入。</p>
+<p>一个使用Head简化model_fn编写的例子如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">def model_fn(features, target, mode, params):</span><br><span class="line">  last_layer &#x3D; tf.stack(tf.fully_connected, [50, 50])</span><br><span class="line">  head &#x3D; tf.multi_class_head(n_classes&#x3D;10)</span><br><span class="line">  return head.create_estimator_spec(</span><br><span class="line">    features, mode, last_layer,</span><br><span class="line">    label&#x3D;target,</span><br><span class="line">    train_op_fn&#x3D;lambda loss: my_optimizer.minimize(loss, tf.train.get_global_step())</span><br></pre></td></tr></table></figure></p>
+<p>我们也可以用一个Heads列表来创建一个特殊类型的Head，来完成多目标学习的任务，如下面的例子那样。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">def model_fn(features, target, mode, params):</span><br><span class="line">  last_layer &#x3D; tf.stack(tf.fully_connected, [50, 50])</span><br><span class="line">  head1 &#x3D; tf.multi_class_head(n_classes&#x3D;2,label_name&#x3D;’y’, head_name&#x3D;’h1’)</span><br><span class="line">  head2 &#x3D; tf.multi_class_head(n_classes&#x3D;10,label_name&#x3D;’z’, head_name&#x3D;’h2’)</span><br><span class="line">  head &#x3D; tf.multi_head([head1, head2])</span><br><span class="line">  return head.create_model_fn_ops(features,</span><br><span class="line">    features, mode, last_layer,</span><br><span class="line">    label&#x3D;target,</span><br><span class="line">    train_op_fn&#x3D;lambda loss: my_optimizer.minimize(loss, tf.train.get_global_step())</span><br></pre></td></tr></table></figure></p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>Tensorflow高阶API简化了模型代码的编写过程，大大降价了新手的入门门槛，使我们能够用一种标准化的方法开发出实验与生产环境部署的代码。使用Tensorflow高阶API能够使我们避免走很多弯路，提高深度学习的实践效率，我们应该尽可能使用高阶API来开发模型。</p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/1708.02637">TensorFlow Estimators: Managing Simplicity vs. Flexibility in High-Level Machine Learning Frameworks</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.tensorflow.org/get_started/custom_estimators">自定义estimators</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.tensorflow.org/get_started/feature_columns">Feature columns</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" rel="tag"># 深度学习</a>
+              <a href="/tags/tensorflow/" rel="tag"># tensorflow</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/esmm/" rel="prev" title="完整空间多任务模型：CVR预估的有效方法">
+      <i class="fa fa-chevron-left"></i> 完整空间多任务模型：CVR预估的有效方法
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/tensorflow-dataset/" rel="next" title="基于Tensorflow高阶API构建大规模分布式深度学习模型系列:基于Dataset API处理Input pipeline">
+      基于Tensorflow高阶API构建大规模分布式深度学习模型系列:基于Dataset API处理Input pipeline <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Tensorflow%E9%AB%98%E9%98%B6API%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">Tensorflow高阶API简介</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Estimator%EF%BC%88%E4%BC%B0%E7%AE%97%E5%99%A8%EF%BC%89"><span class="nav-number">1.1.</span> <span class="nav-text">Estimator（估算器）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%87%BD%E6%95%B0"><span class="nav-number">1.2.</span> <span class="nav-text">模型函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Dataset%EF%BC%88%E6%95%B0%E6%8D%AE%E9%9B%86%EF%BC%89"><span class="nav-number">1.3.</span> <span class="nav-text">Dataset（数据集）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Feature-Columns%EF%BC%88%E7%89%B9%E5%BE%81%E5%88%97%EF%BC%89"><span class="nav-number">1.4.</span> <span class="nav-text">Feature Columns（特征列）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Layers"><span class="nav-number">1.5.</span> <span class="nav-text">Layers</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Head"><span class="nav-number">1.6.</span> <span class="nav-text">Head</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">1.7.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">1.8.</span> <span class="nav-text">参考资料</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="一、何为类加载器我们编写的.java文件经过编译器编译之后，生成.class文件，即字节码文件，类加载器就是负责加载字节码文件到JVM中，并将字节码转换成为java.lang.class类的实例，这个实例便是我们编写的类，通过class实例的newInstance方法，便可以得到java类的对象。 类加载器是类加载过程中的关键角色，他存在于「类加载Class load」过程的「加载」阶段中，在这个">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM类加载机制剖析">
+<meta property="og:url" content="http://xudongyang.coding.me/jvm-class-loader/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="一、何为类加载器我们编写的.java文件经过编译器编译之后，生成.class文件，即字节码文件，类加载器就是负责加载字节码文件到JVM中，并将字节码转换成为java.lang.class类的实例，这个实例便是我们编写的类，通过class实例的newInstance方法，便可以得到java类的对象。 类加载器是类加载过程中的关键角色，他存在于「类加载Class load」过程的「加载」阶段中，在这个">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://img1.tbcdn.cn/L1/461/1/5194b58d3bfaf478db6570afc17e8f9916f702fd.png">
+<meta property="og:image" content="http://upload-images.jianshu.io/upload_images/3901673-decfb670e9357fef.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:image" content="http://img2.tbcdn.cn/L1/461/1/47e33802ae2f51d7452645ff811a50fce349b119.png">
+<meta property="article:published_time" content="2017-07-04T14:35:15.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.907Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="JVM">
+<meta property="article:tag" content="ClassLoader">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://img1.tbcdn.cn/L1/461/1/5194b58d3bfaf478db6570afc17e8f9916f702fd.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/jvm-class-loader/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>JVM类加载机制剖析 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/jvm-class-loader/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          JVM类加载机制剖析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-07-04 22:35:15" itemprop="dateCreated datePublished" datetime="2017-07-04T22:35:15+08:00">2017-07-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/" itemprop="url" rel="index"><span itemprop="name">程序设计</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/java/" itemprop="url" rel="index"><span itemprop="name">java</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/jvm-class-loader/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/jvm-class-loader/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="一、何为类加载器"><a href="#一、何为类加载器" class="headerlink" title="一、何为类加载器"></a>一、何为类加载器</h1><p>我们编写的.java文件经过编译器编译之后，生成.class文件，即字节码文件，类加载器就是负责加载字节码文件到JVM中，并将字节码转换成为java.lang.class类的实例，这个实例便是我们编写的类，通过class实例的newInstance方法，便可以得到java类的对象。</p>
+<p>类加载器是类加载过程中的关键角色，他存在于「类加载Class load」过程的「加载」阶段中，在这个阶段，JVM虚拟机完成了三件事情:</p>
+<ol>
+<li>通过一个类的全限定名(包名称+类名称)获取定义此类的二进制字节流（类的权限定名可以映射到文件系统中的文件路径）；</li>
+<li>将这个字节流所代表的静态存储结构转化为方法区的运行时数据结构；</li>
+<li>在内存中生成一个代表这个类的java.lang.Class对象，作为方法区这个类的各种数据的访问入口；<a id="more"></a>
+<h2 id="java-lang-ClassLoader"><a href="#java-lang-ClassLoader" class="headerlink" title="java.lang.ClassLoader"></a>java.lang.ClassLoader</h2></li>
+<li>loadClass(String className): 加载className类，返回java.lang.class类的实例，异常则抛出ClassNotFoundException</li>
+<li>defineClass(String name, byte[] b, int off, int len): 加载字节码，返回class类的实例，异常则抛出NoClassDefFoundError</li>
+</ol>
+<h1 id="二、类加载器的体系结构"><a href="#二、类加载器的体系结构" class="headerlink" title="二、类加载器的体系结构"></a>二、类加载器的体系结构</h1><p><img src="http://img1.tbcdn.cn/L1/461/1/5194b58d3bfaf478db6570afc17e8f9916f702fd.png" alt></p>
+<h2 id="1-启动类加载器「Bootstrap-ClassLoader」"><a href="#1-启动类加载器「Bootstrap-ClassLoader」" class="headerlink" title="1. 启动类加载器「Bootstrap ClassLoader」"></a>1. 启动类加载器「Bootstrap ClassLoader」</h2><p>处于最顶端的类加载器，主要负责JAVA_HOME/jre/lib目录下的核心jar或者由-Xbootclasspath选项指定的jar包的装入工作。深入分析下Launcher的源码，发现Bootstrap ClassLoader其实加载的是System.getProperty(“sun.boot.class.path”)定义下的类包路径。</p>
+<p>查看JVM启动后Bootstrap ClassLoader具体加载了哪些jar：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">URL[] bootUrls = sun.misc.Launcher.getBootstrapClassPath().getURLs();</span><br><span class="line"><span class="keyword">for</span> (URL url : bootUrls) &#123;</span><br><span class="line">    System.out.println(url.toExternalForm());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Bootstrap ClassLoader是由C++编写的并且内嵌于JVM中，该加载器是无法被java程序直接引用的。比如，java.util.ArrayList类处于rt.jar包下，该包是由Bootstrap ClassLoader负责加载，所以下面这段代码打印出来就是null了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ArrayList list = <span class="keyword">new</span> ArrayList();</span><br><span class="line">System.out.println(<span class="string">&quot;list的类加载器为:&quot;</span>+list.getClass().getClassLoader());</span><br></pre></td></tr></table></figure>
+<h2 id="2-扩展类加载器「Extension-ClassLoader」"><a href="#2-扩展类加载器「Extension-ClassLoader」" class="headerlink" title="2. 扩展类加载器「Extension ClassLoader」"></a>2. 扩展类加载器「Extension ClassLoader」</h2><p>扩展类加载器是由sun.misc.Launcher$ExtClassLoader实现，顾名思义这个类加载器主要负责加载JAVA_HOME\lib\ext目录中或者被java.ext.dirs系统变量定义的路径下的所有类库。</p>
+<h2 id="3-应用程序类加载器「App-ClassLoader」"><a href="#3-应用程序类加载器「App-ClassLoader」" class="headerlink" title="3. 应用程序类加载器「App ClassLoader」"></a>3. 应用程序类加载器「App ClassLoader」</h2><p>应用程序类加载器是由sun.misc.Launcher$AppClassLoader实现，通过源码发现，该类加载器负责加载System.getProperty(“java.class.path”)也就是classpath下的类库。该类加载器又可以称为<strong>系统类加载器</strong>，在用户没有明确指定类加载器的情况下，系统默认使用AppClassLoader加载类。</p>
+<h2 id="4-自定义类加载器「Custom-ClassLoader」"><a href="#4-自定义类加载器「Custom-ClassLoader」" class="headerlink" title="4. 自定义类加载器「Custom ClassLoader」"></a>4. 自定义类加载器「Custom ClassLoader」</h2><p>自定义类加载器是提供给用户自定义「加载哪里的类」而产生的，当初虚拟机在定义「通过一个类的全限定名(包名称+类名称)获取定义此类的二进制字节流」并没有把获取方式限定死，提供了灵活的方式给用户使用，被加载的类可以来自于数据库、可以来自本地文件、可以来自云存储介质等等，用户所需要的就是自定义类加载器并且继承ClassLoader,最后重写「findClass」方法，ClassLoader为我们提供了defineClass方法可以方便的加载源码的二进制字节流。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * for example, an application could create a network class loader to</span></span><br><span class="line"><span class="comment"> * download class files from a server.  Sample code might look like:</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line">ClassLoader loader = <span class="keyword">new</span> NetworkClassLoader(host,port);</span><br><span class="line">Object main = loader.loadClass(<span class="string">&quot;Main&quot;</span>, <span class="keyword">true</span>).newInstance();</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> *The network class loader subclass must define the methods &#123;@link</span></span><br><span class="line"><span class="comment"> * #findClass &lt;tt&gt;findClass&lt;/tt&gt;&#125; and &lt;tt&gt;loadClassData&lt;/tt&gt; to load a class</span></span><br><span class="line"><span class="comment"> * from the network.  Once it has downloaded the bytes that make up the class,</span></span><br><span class="line"><span class="comment"> * it should use the method &#123;@link #defineClass &lt;tt&gt;defineClass&lt;/tt&gt;&#125; to</span></span><br><span class="line"><span class="comment"> * create a class instance.  A sample implementation is:</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">NetworkClassLoader</span> <span class="keyword">extends</span> <span class="title">ClassLoader</span> </span>&#123;</span><br><span class="line"> String host;</span><br><span class="line"> <span class="keyword">int</span> port;</span><br><span class="line"></span><br><span class="line"> <span class="function"><span class="keyword">public</span> Class <span class="title">findClass</span><span class="params">(String name)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">byte</span>[] b = loadClassData(name);</span><br><span class="line">    <span class="keyword">return</span> defineClass(name, b, <span class="number">0</span>, b.length);</span><br><span class="line"> &#125;</span><br><span class="line"> <span class="keyword">private</span> <span class="keyword">byte</span>[] loadClassData(String name) &#123;</span><br><span class="line">    <span class="comment">// load the class data from the connection</span></span><br><span class="line"> &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="http://upload-images.jianshu.io/upload_images/3901673-decfb670e9357fef.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt></p>
+<h1 id="三、双亲委派模型"><a href="#三、双亲委派模型" class="headerlink" title="三、双亲委派模型"></a>三、双亲委派模型</h1><p>在同一个JVM中，一个类加载器和一个类的全限定名共同唯一决定一个类Class的实例。也就是说判定两个类相等法则：类的全名（包名+类名）相同+类加载器相同。</p>
+<p>类加载器在加载类的过程中，会先代理给它的父加载器，以此类推。这样的好处是能够保证Java核心库的类型安全，例如java.lang.String类，如果不存在代理模式，则不同的类加载，根据判定两个类相等的法则，会导致存在不同版本的String类，会导致不兼容问题。</p>
+<p>核心代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">protected Class&lt;?&gt; loadClass(String name, boolean resolve)</span><br><span class="line">        throws ClassNotFoundException</span><br><span class="line">    &#123;</span><br><span class="line">        synchronized (getClassLoadingLock(name)) &#123;</span><br><span class="line">            &#x2F;&#x2F;  [首先，检查该类是否被当前类加载器加载]</span><br><span class="line">            Class c &#x3D; findLoadedClass(name);</span><br><span class="line">            if (c &#x3D;&#x3D; null) &#123;</span><br><span class="line">                long t0 &#x3D; System.nanoTime();</span><br><span class="line">                try &#123;</span><br><span class="line">                    if (parent !&#x3D; null) &#123;</span><br><span class="line">            &#x2F;&#x2F; [调用父类加载器的loadClass方法，实现了自底向上的检查类是否被加载的功能]</span><br><span class="line">                        c &#x3D; parent.loadClass(name, false);</span><br><span class="line">                    &#125; else &#123;</span><br><span class="line">             &#x2F;&#x2F; [父类加载器为null，也就是去调用BootClassLoader加载]</span><br><span class="line">                        c &#x3D; findBootstrapClassOrNull(name);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; catch (ClassNotFoundException e) &#123;</span><br><span class="line">                    &#x2F;&#x2F; ClassNotFoundException thrown if class not found</span><br><span class="line">                    &#x2F;&#x2F; from the non-null parent class loader</span><br><span class="line">                &#125;</span><br><span class="line">                if (c &#x3D;&#x3D; null) &#123;</span><br><span class="line">                    long t1 &#x3D; System.nanoTime();</span><br><span class="line">                    &#x2F;&#x2F; [调用当前类加载器findClass方法实现了的自顶向下的类加载功能：ExtClassLoader.findClass(name) -&gt; AppClassLoader.findClass(name) -&gt; CustomClassLoader.findClass(name)]</span><br><span class="line">                    c &#x3D; findClass(name);</span><br><span class="line">                    &#x2F;&#x2F; this is the defining class loader; record the stats</span><br><span class="line">                    sun.misc.PerfCounter.getParentDelegationTime().addTime(t1 - t0);</span><br><span class="line">                    sun.misc.PerfCounter.getFindClassTime().addElapsedTimeFrom(t1);</span><br><span class="line">                    sun.misc.PerfCounter.getFindClasses().increment();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            if (resolve) &#123;</span><br><span class="line">                resolveClass(c);</span><br><span class="line">            &#125;</span><br><span class="line">            return c;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p><img src="http://img2.tbcdn.cn/L1/461/1/47e33802ae2f51d7452645ff811a50fce349b119.png" alt></p>
+<h1 id="四、类加载过程"><a href="#四、类加载过程" class="headerlink" title="四、类加载过程"></a>四、类加载过程</h1><p>在前面介绍类加载器的代理模式的时候，提到过类加载器会首先代理给其它类加载器来尝试加载某个类。这就意味着真正完成类的加载工作的类加载器和启动这个加载过程的类加载器，有可能不是同一个。真正完成类的加载工作是通过调用 defineClass来实现的；而启动类的加载过程是通过调用 loadClass来实现的。前者称为一个类的定义加载器（defining loader），后者称为初始加载器（initiating loader）。在 Java 虚拟机判断两个类是否相同的时候，使用的是类的定义加载器。也就是说，哪个类加载器启动类的加载过程并不重要，重要的是最终定义这个类的加载器。两种类加载器的关联之处在于：一个类的定义加载器是它引用的其它类的初始加载器。如类 com.example.Outer引用了类com.example.Inner，则由类 com.example.Outer的定义加载器负责启动类 com.example.Inner的加载过程。</p>
+<p>类加载器在成功加载某个类之后，会把得到的 java.lang.Class类的实例缓存起来。下次再请求加载该类的时候，类加载器会直接使用缓存的类的实例，而不会尝试再次加载。也就是说，对于一个类加载器实例来说，相同全名的类只加载一次，即 loadClass方法不会被重复调用。</p>
+<p>参考资料：<br><a target="_blank" rel="noopener" href="http://www.ibm.com/developerworks/cn/java/j-lo-classloader/">http://www.ibm.com/developerworks/cn/java/j-lo-classloader/</a></p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/JVM/" rel="tag"># JVM</a>
+              <a href="/tags/ClassLoader/" rel="tag"># ClassLoader</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/hign-eq-is-talking2/" rel="prev" title="《所谓情商高就是会说话》读书笔记2">
+      <i class="fa fa-chevron-left"></i> 《所谓情商高就是会说话》读书笔记2
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/traffic-control/" rel="next" title="电商平台商家流量分配机制">
+      电商平台商家流量分配机制 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E4%BD%95%E4%B8%BA%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8"><span class="nav-number">1.</span> <span class="nav-text">一、何为类加载器</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#java-lang-ClassLoader"><span class="nav-number">1.1.</span> <span class="nav-text">java.lang.ClassLoader</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BA%8C%E3%80%81%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8%E7%9A%84%E4%BD%93%E7%B3%BB%E7%BB%93%E6%9E%84"><span class="nav-number">2.</span> <span class="nav-text">二、类加载器的体系结构</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%90%AF%E5%8A%A8%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8%E3%80%8CBootstrap-ClassLoader%E3%80%8D"><span class="nav-number">2.1.</span> <span class="nav-text">1. 启动类加载器「Bootstrap ClassLoader」</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%89%A9%E5%B1%95%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8%E3%80%8CExtension-ClassLoader%E3%80%8D"><span class="nav-number">2.2.</span> <span class="nav-text">2. 扩展类加载器「Extension ClassLoader」</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8%E3%80%8CApp-ClassLoader%E3%80%8D"><span class="nav-number">2.3.</span> <span class="nav-text">3. 应用程序类加载器「App ClassLoader」</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E8%87%AA%E5%AE%9A%E4%B9%89%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8%E3%80%8CCustom-ClassLoader%E3%80%8D"><span class="nav-number">2.4.</span> <span class="nav-text">4. 自定义类加载器「Custom ClassLoader」</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%89%E3%80%81%E5%8F%8C%E4%BA%B2%E5%A7%94%E6%B4%BE%E6%A8%A1%E5%9E%8B"><span class="nav-number">3.</span> <span class="nav-text">三、双亲委派模型</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%9B%9B%E3%80%81%E7%B1%BB%E5%8A%A0%E8%BD%BD%E8%BF%87%E7%A8%8B"><span class="nav-number">4.</span> <span class="nav-text">四、类加载过程</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

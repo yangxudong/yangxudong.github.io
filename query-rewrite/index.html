@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="为何需要Query改写Query分析是搜索引擎的一个重要模块，对搜索结果的覆盖率和相关性至关重要。搜索引擎的检索过程包含了两个重要的阶段：匹配和排序。匹配也叫召回，表示根据用户的查询条件，尽可能多地匹配出主题相关的文档，尽可能少地匹配出主题不相关的文档。排序是指对召回阶段返回的文档集合进行合理的排序，把最满足用户意图的结果尽可能排到前面。Query分析的主要目标是为匹配过程提供必要的知识和信息，同">
+<meta property="og:type" content="article">
+<meta property="og:title" content="查询改写（Query Rewrite）方法总结">
+<meta property="og:url" content="http://xudongyang.coding.me/query-rewrite/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="为何需要Query改写Query分析是搜索引擎的一个重要模块，对搜索结果的覆盖率和相关性至关重要。搜索引擎的检索过程包含了两个重要的阶段：匹配和排序。匹配也叫召回，表示根据用户的查询条件，尽可能多地匹配出主题相关的文档，尽可能少地匹配出主题不相关的文档。排序是指对召回阶段返回的文档集合进行合理的排序，把最满足用户意图的结果尽可能排到前面。Query分析的主要目标是为匹配过程提供必要的知识和信息，同">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://xudongyang.coding.me/simrank-plus-plus/query-rewrite.png">
+<meta property="og:image" content="http://xudongyang.coding.me/query-rewrite/query-analysis.png">
+<meta property="og:image" content="http://xudongyang.coding.me/query-rewrite/query2vec.png">
+<meta property="og:image" content="http://xudongyang.coding.me/query-rewrite/session2vec.png">
+<meta property="og:image" content="http://xudongyang.coding.me/query-rewrite/query-similarity.png">
+<meta property="article:published_time" content="2017-05-10T16:06:18.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.910Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="计算广告">
+<meta property="article:tag" content="query改写">
+<meta property="article:tag" content="搜索引擎">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://xudongyang.coding.me/simrank-plus-plus/query-rewrite.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/query-rewrite/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>查询改写（Query Rewrite）方法总结 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/query-rewrite/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          查询改写（Query Rewrite）方法总结
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2017-05-11 00:06:18" itemprop="dateCreated datePublished" datetime="2017-05-11T00:06:18+08:00">2017-05-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E4%BF%A1%E6%81%AF%E6%A3%80%E7%B4%A2/" itemprop="url" rel="index"><span itemprop="name">信息检索</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/query-rewrite/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/query-rewrite/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.5k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="为何需要Query改写"><a href="#为何需要Query改写" class="headerlink" title="为何需要Query改写"></a>为何需要Query改写</h1><p>Query分析是搜索引擎的一个重要模块，对搜索结果的覆盖率和相关性至关重要。搜索引擎的检索过程包含了两个重要的阶段：匹配和排序。匹配也叫召回，表示根据用户的查询条件，尽可能多地匹配出主题相关的文档，尽可能少地匹配出主题不相关的文档。排序是指对召回阶段返回的文档集合进行合理的排序，把最满足用户意图的结果尽可能排到前面。Query分析的主要目标是为匹配过程提供必要的知识和信息，同时兼顾后面的排序过程，为排序模型提供原始特征。</p>
+<p>Query改写是Query分析的一个重要组成部分。通过对原始Query进行改写，生成一系列相关Query，把相关Query作为原始Query的补充，与原始Query一起参与搜索，从而得到更加丰富和准确的匹配结果。下面分别从网页搜索、电商搜索和广告搜索三个方面来论证Query改写的必要性。<br><a id="more"></a></p>
+<h2 id="网页搜索"><a href="#网页搜索" class="headerlink" title="网页搜索"></a>网页搜索</h2><p>有研究表明，互联网用户在使用网页搜索功能时，所提交的查询短语具有以下两个特点：(1) 查询短语较短，平均长度为2.2个单词，其中常用的查询短语的平均长度为1.7个单词；(2) 查询短语的使用频率呈幂率分布(Power Law)，近50%的查询短语每小时的使用频率在5次以下。查询短语短，则字面上蕴含的信息量较少，表义不够充分，因此需要理解Query的意图，对查询短语进行补充。</p>
+<p>用户的查询语言与网页的文档书写语言之间通常存在一定的鸿沟，用户和文档作者可能倾向于用不同的表达方式来描述同一个意思。比如，天文学相关的文档可能会描述“太阳和地球的距离是XXX”，而用户的查询则可能是“地球和太阳有多远”。</p>
+<p>自然语言中存在大量的“一词多义”和“一义多词”的现象。比如用户检索“苹果”，可能是想查找作为水果的苹果，也可能是想找苹果手机或是其他苹果品牌的电子产品；再比如用户检索“客栈”，其真实意图是想找住宿的地方，这时标题中包含“宾馆”、“酒店”、“旅社”的商品都应该能够被检索出来。同一实体存在多种不同的表达方式，比如“土豆”与“马铃薯”、“番茄”与“西红柿”等。不同的人翻译外文文献时可能会用不同的术语来表达同一个概念，“reinforcement learing”有人翻译为“强化学习”，有人翻译为“增强学习”。</p>
+<p>另一方面，用过的查询短语还经常包含错别字，比如“克莉丝汀”可能会被写成“克里斯汀”等；网络上还存在大量没有写完的查询，比如“noki”表示“nokia(诺基亚)”。</p>
+<p>上述问题的存在都为通过文本匹配是搜索系统带来了挑战，而Query改写正是解决上述问题的一种思路。</p>
+<h2 id="电商搜索"><a href="#电商搜索" class="headerlink" title="电商搜索"></a>电商搜索</h2><p>电商搜索引擎一般都是对商品标题分词建立倒排索引，用户搜索时对用户Query进行分词然后与倒排索引进行匹配召回。如果不对用户Query做任何改写，只有Query与商品标题中的词完全匹配时才能被召回，那么虽然这种召回方法比较简单，但也会导致很多问题：</p>
+<ul>
+<li><p>Query和商品的标题描述语言之间存在一些差异， 可能导致一些满足用户Query意图但不完全匹配的商品无法被召回。例如：</p>
+<blockquote>
+<p>Query：老年机；        商品：老年手机<br>Query：牛仔连衣裙；      商品：连衣牛仔裙<br>Query：欧美凉鞋平底；    商品： 罗马鞋 夹趾</p>
+</blockquote>
+</li>
+<li><p>熟悉搜索机制的卖家会对标题进行SEO、堆砌与宝贝不符的词，以获取额外流量；而一些B类大商家的商品标题通常比较简洁，却很难与用户Query完全匹配，导致无法召回而损失流量。例如:</p>
+<blockquote>
+<p>Query=袜子 男； 商品：男装 短袜</p>
+</blockquote>
+</li>
+<li><p>搜索Query用户可能无意识的会输入一些冗余的词。由于所有的查询词都要出现在商品标题中，用户无意识输入的这些冗余词会对召回造成比较大损失。例如：</p>
+<blockquote>
+<p>连衣裙 女， 羽绒服 冬季，  女装 妈妈装</p>
+</blockquote>
+</li>
+</ul>
+<h2 id="广告搜索"><a href="#广告搜索" class="headerlink" title="广告搜索"></a>广告搜索</h2><p>广告搜索引擎的索引方式和普通是搜索引擎有很大的差异，因为广告搜索需要匹配的是广告的竞价词，而不是广告内容本身的文本信息。广告搜索引擎的倒排索引一般是以广告的竞价词（归一化之后的形式）为查询的Key。用户的Query（包括改写之后的Query）需要和竞价词完全匹配才能召回广告。</p>
+<p>在进行广告检索时，往往由于查询短语较短，只能够获得部分与查询相匹配的广告；同时，由于某些查询对应的直接竞标广告数据较少，数量不够在搜索结果页面中展示；另外，由于查询短语的使用频率呈幂率分布，往往会导致部分广告被频繁地检索到。为了解决这些问题，赞助商搜索系统通常都会引入查询重写机制。相应的赞助商搜索系统架构通常分裂成两个部分，如下图所示。</p>
+<p><img src="http://xudongyang.coding.me/simrank-plus-plus/query-rewrite.png" alt="使用查询重写机制的赞助商搜索系统架构"></p>
+<p>在上图中，前端接受输入查询q并产生一系列重写结果，这些重写结果与查询q之间具有一定的相关性。比如，对于查询“相机”，查询“数码相机”和“拍摄设备”可能是有用的，因为用户可能会对与这些查询相关的广告感兴趣。同时，查询“电池”和原始查询也具有一定的相关性，尽管它们在文本上毫不相关，因为用户在购买相机的时候也会对相机的备用零件感兴趣。因而，Query改写方法需要能把“相机”改写为“数码相机”和“拍摄设备”，甚至是“电池”。</p>
+<p>原始查询和重写查询会被后端处理，与这些查询相关联的竞价广告会被检索出来。把系统架构分裂成两个部分降低了系统的复杂性。系统前端专注于查询重写，后端专注于处理快速变化的广告竞价数据、匹配相关内容和对检索结果排序。</p>
+<h1 id="Query分析的层次结构"><a href="#Query分析的层次结构" class="headerlink" title="Query分析的层次结构"></a>Query分析的层次结构</h1><p>Query分析可以按照如下的层次结构来理解：<br><img src="/query-rewrite/query-analysis.png" alt="Query analysis 组成分解"></p>
+<ol>
+<li><p>文本归一化。包括特殊符号过滤、大小写归一、繁体转简体、全角转半角等操作。</p>
+</li>
+<li><p>Term：对Query做中文切词/纠错处理/同义词转换/term标签与重要度。</p>
+<blockquote>
+<p>举例：Query=“nokia 5230 皮套”<br>切词结果：nokia / 5230 /皮套<br>同义词：诺基亚 / 5230 /（手机皮套，手机套，皮壳）<br>Term标签：品牌-nokia; 型号-5230; 产品词-皮套<br>Term重要度：nokia:score=0.5; 5230:score=0.8; 皮套:score=1.0</p>
+</blockquote>
+</li>
+<li><p>Phrase：对Query做短语单元切分。</p>
+<blockquote>
+<p>举例：Query=“双眼皮贴”不可以切分成“双眼皮”和“贴”<br>隐含词：“龙门将军”等同于“龙门将军斗鱼”</p>
+</blockquote>
+</li>
+<li><p>WordSense： Query中term的相关term扩展，从而得到改写query。<br>改写query与原始query具有一定的相关性</p>
+<blockquote>
+<p>举例：Translation Model将query与其他query通过相同的term位置对齐，得到扩展的相关term.</p>
+</blockquote>
+</li>
+<li><p>Topic： 对Query做分类、识别Query的主题。</p>
+</li>
+</ol>
+<ul>
+<li>电商特有的类目体系就是一个天然的宝贝聚合类别标签库，类目预测模块作用就是将query分类到N个类目下。<blockquote>
+<p>举例：Query=nokia<br>类别：手机类目 / 二手闲置手机类目</p>
+</blockquote>
+</li>
+<li>通过PLSA、LDA等主题模型计算Query所包含的主题的概率分布。</li>
+</ul>
+<ol>
+<li><p>Structure：对Query做结构化分析和标注。</p>
+<blockquote>
+<p>举例：Query=白色雪纺连衣裙<br>标注为：tag1=连衣裙类目-裙子款式-连体; score=1<br>tag2=连衣裙类目-颜色分类-白色; score=0.5<br>tag3=连衣裙类目-材质-雪纺; scsore=0.8</p>
+</blockquote>
+<p>有了这些属性标注和权重，我们可以做很多有意义的事情：</p>
+</li>
+</ol>
+<ul>
+<li>query扩展：通过相同的属性做term扩展。<br>举例：连衣裙类目-材质-雪纺 和连衣裙类目-材质-蕾丝<br>从而得到扩展term:雪纺 与 蕾丝</li>
+<li>query或宝贝相似度计算：将标注tag作为特征加入相关性模型中，作为query-query或query-宝贝的相似度计算特征</li>
+<li>query聚类：提取重要tag组合作为类别，对query或宝贝聚类。还可以构建一颗语义树，树的每个结点是属性tag，结点下挂载标注该tag的query或宝贝。在这颗语义树上做策略裁剪，就可以得到不同的类别集合。</li>
+</ul>
+<h1 id="Query改写的常用方法"><a href="#Query改写的常用方法" class="headerlink" title="Query改写的常用方法"></a>Query改写的常用方法</h1><p>Query改写本质上是要找到和原始Query相似的候选Query，如何找相似Query呢？</p>
+<h2 id="基于Query的内容"><a href="#基于Query的内容" class="headerlink" title="基于Query的内容"></a>基于Query的内容</h2><ol>
+<li>基于文本相似度。比如，文本编辑距离（基于字或者词）。</li>
+<li>基于Query的意图。比如识别出query中的产品、品牌、性别、颜色、型号等重要属性，在这些重要属性组成的向量上计算相似度。</li>
+<li>基于预测类目的相似度或差异度。比如，计算两个query预测类目集合的Jaccard相似度；</li>
+</ol>
+<h2 id="基于Query的点击行为"><a href="#基于Query的点击行为" class="headerlink" title="基于Query的点击行为"></a>基于Query的点击行为</h2><p>该方法适用于用户行为比较丰富的Query；由于许多卖家的SEO，标题对同一种商品有多种描述堆砌，导致这些商品在相似Query下都能被召回而且有点击行为。</p>
+<ol>
+<li>协同过滤。例如可以用7的日志数据，建立Query下商品点击行为矩阵；采用协同过滤的思想计算Q1和Q2相似度，具体计算相似度的方法可以有很多种，常用的入cosine余弦相似度。在query的点击行为比较稀疏时，还可以通过在query和商品的点击二部图上游走来扩充query的行为向量。</li>
+<li>基于随机游走的方法。比如SimRank、SimRank++等。</li>
+<li>基于点击文档集合的差异度。比如电商搜索中，计算query点击商品集合或点击商品的类目集合的差异度。差异度越小，说明query越相似。<blockquote>
+<p>f1=#(S(q2)-S(q1))/#S(q2); f2=#(S(q1)-S(q2))/#S(q1)； 其中，S(q)表示q点击宝贝的集合，#表示取集合是size</p>
+</blockquote>
+</li>
+<li>基于点击商品的图片的相似度。电商平台的一些卖家卖的商品和别人是完全相同的，但在电商平台上有不同的商品ID。有些小卖家经常会盗用别人的图，或者直接用代理商的图，因此相同或相似的图实际上是对商品做了聚类。</li>
+</ol>
+<h2 id="基于语义信息"><a href="#基于语义信息" class="headerlink" title="基于语义信息"></a>基于语义信息</h2><p>计算query的语义向量，并根据语义向量计算Q1和Q2的语义相似度。</p>
+<ol>
+<li>先计算出词向量，再通过（加权）加和的方法融合词向量得到query向量。</li>
+<li>采用Doc2Vec方法将Query向量化。考虑到搜索Query通常比较短，将Query本身当做doc比较难以向量化。用Query下点击的商品的标题作为一个完整的doc, 采用doc2vec向量化Query。在用户点击行为的基础上加入一些语义信息，应该能挖掘到比行为相似更丰富的一些候选。每个Query限制用N个点击商品标题来构造doc；中高频Query点击商品数大于N时，按商品的点击次数进行采样：点击次数越多被采样的概率越大。</li>
+</ol>
+<p><img src="/query-rewrite/query2vec.png" alt></p>
+<h2 id="基于Session"><a href="#基于Session" class="headerlink" title="基于Session"></a>基于Session</h2><p>将用户session内的所有行为看做一个doc, 而每个query看做这个doc内的词。再用word2vec的方法学习每个query的语义向量。假设用户session内的行为具有比较高的相似性，在相似session context下的Query可能具有比较高的相似度。</p>
+<p><img src="/query-rewrite/session2vec.png" alt></p>
+<h1 id="计算Query相似度的统一模型"><a href="#计算Query相似度的统一模型" class="headerlink" title="计算Query相似度的统一模型"></a>计算Query相似度的统一模型</h1><p>上节介绍的各种方法都可以用来生成候选query，不同的方法生成的候选query与原始query的相关程度通常难以直接比较，因此，需要一个统一的模型来考量最终的相关程度。</p>
+<p>上述的方法本身在生成候选query时，可以计算出针对该方法本身的候选query相似性分数，这些分数就可以用来作为统一模型的特征。</p>
+<p><img src="/query-rewrite/query-similarity.png" alt></p>
+<p>有了度量相似度的统一模型，就可以选取与原始查询最相似的topK个候选查询, 与原始查询一起参与召回。</p>
+<h1 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h1><p>Context- and Content-aware Embeddings for Query Rewriting in Sponsored Search</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E8%AE%A1%E7%AE%97%E5%B9%BF%E5%91%8A/" rel="tag"># 计算广告</a>
+              <a href="/tags/query%E6%94%B9%E5%86%99/" rel="tag"># query改写</a>
+              <a href="/tags/%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E/" rel="tag"># 搜索引擎</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/deep-learning/" rel="prev" title="拨开深度学习的迷雾：训练一个性能优秀的深度模型">
+      <i class="fa fa-chevron-left"></i> 拨开深度学习的迷雾：训练一个性能优秀的深度模型
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/sponsored-search/" rel="next" title="搜索广告(sponsored-search)概述">
+      搜索广告(sponsored-search)概述 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%BA%E4%BD%95%E9%9C%80%E8%A6%81Query%E6%94%B9%E5%86%99"><span class="nav-number">1.</span> <span class="nav-text">为何需要Query改写</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E9%A1%B5%E6%90%9C%E7%B4%A2"><span class="nav-number">1.1.</span> <span class="nav-text">网页搜索</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%B5%E5%95%86%E6%90%9C%E7%B4%A2"><span class="nav-number">1.2.</span> <span class="nav-text">电商搜索</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B9%BF%E5%91%8A%E6%90%9C%E7%B4%A2"><span class="nav-number">1.3.</span> <span class="nav-text">广告搜索</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Query%E5%88%86%E6%9E%90%E7%9A%84%E5%B1%82%E6%AC%A1%E7%BB%93%E6%9E%84"><span class="nav-number">2.</span> <span class="nav-text">Query分析的层次结构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Query%E6%94%B9%E5%86%99%E7%9A%84%E5%B8%B8%E7%94%A8%E6%96%B9%E6%B3%95"><span class="nav-number">3.</span> <span class="nav-text">Query改写的常用方法</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8EQuery%E7%9A%84%E5%86%85%E5%AE%B9"><span class="nav-number">3.1.</span> <span class="nav-text">基于Query的内容</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8EQuery%E7%9A%84%E7%82%B9%E5%87%BB%E8%A1%8C%E4%B8%BA"><span class="nav-number">3.2.</span> <span class="nav-text">基于Query的点击行为</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E8%AF%AD%E4%B9%89%E4%BF%A1%E6%81%AF"><span class="nav-number">3.3.</span> <span class="nav-text">基于语义信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8ESession"><span class="nav-number">3.4.</span> <span class="nav-text">基于Session</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97Query%E7%9B%B8%E4%BC%BC%E5%BA%A6%E7%9A%84%E7%BB%9F%E4%B8%80%E6%A8%A1%E5%9E%8B"><span class="nav-number">4.</span> <span class="nav-text">计算Query相似度的统一模型</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="nav-number">5.</span> <span class="nav-text">参考文献</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

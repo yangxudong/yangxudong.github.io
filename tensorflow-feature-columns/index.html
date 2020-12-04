@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="特征工程是机器学习流程中重要的一个环节，即使是通常用来做端到端学习的深度学习模型在训练之前也免不了要做一些特征工程相关的工作。Tensorflow平台提供的FeatureColumn API为特征工程提供了强大的支持。 Feature cloumns是原始数据和Estimator模型之间的桥梁，它们被用来把各种形式的原始数据转换为模型能够使用的格式。深度神经网络只能处理数值数据，网络中的每个神经元">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于Tensorflow高阶API构建大规模分布式深度学习模型系列之特征工程Feature Columns">
+<meta property="og:url" content="http://xudongyang.coding.me/tensorflow-feature-columns/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="特征工程是机器学习流程中重要的一个环节，即使是通常用来做端到端学习的深度学习模型在训练之前也免不了要做一些特征工程相关的工作。Tensorflow平台提供的FeatureColumn API为特征工程提供了强大的支持。 Feature cloumns是原始数据和Estimator模型之间的桥梁，它们被用来把各种形式的原始数据转换为模型能够使用的格式。深度神经网络只能处理数值数据，网络中的每个神经元">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.tensorflow.org/images/feature_columns/inputs_to_model_bridge.jpg">
+<meta property="og:image" content="https://www.tensorflow.org/images/feature_columns/some_constructors.jpg">
+<meta property="og:image" content="https://www.tensorflow.org/images/feature_columns/bucketized_column.jpg">
+<meta property="og:image" content="https://www.tensorflow.org/images/feature_columns/categorical_column_with_identity.jpg">
+<meta property="og:image" content="https://www.tensorflow.org/images/feature_columns/categorical_column_with_vocabulary.jpg">
+<meta property="og:image" content="https://www.tensorflow.org/images/feature_columns/hashed_column.jpg">
+<meta property="og:image" content="https://www.tensorflow.org/images/feature_columns/embedding_vs_indicator.jpg">
+<meta property="article:published_time" content="2018-08-09T08:39:10.000Z">
+<meta property="article:modified_time" content="2020-12-04T08:17:21.940Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="深度学习">
+<meta property="article:tag" content="tensorflow">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.tensorflow.org/images/feature_columns/inputs_to_model_bridge.jpg">
+
+<link rel="canonical" href="http://xudongyang.coding.me/tensorflow-feature-columns/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>基于Tensorflow高阶API构建大规模分布式深度学习模型系列之特征工程Feature Columns | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/tensorflow-feature-columns/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基于Tensorflow高阶API构建大规模分布式深度学习模型系列之特征工程Feature Columns
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-08-09 16:39:10" itemprop="dateCreated datePublished" datetime="2018-08-09T16:39:10+08:00">2018-08-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">深度学习</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/tensorflow-feature-columns/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/tensorflow-feature-columns/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>17k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>16 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>特征工程是机器学习流程中重要的一个环节，即使是通常用来做端到端学习的深度学习模型在训练之前也免不了要做一些特征工程相关的工作。Tensorflow平台提供的FeatureColumn API为特征工程提供了强大的支持。</p>
+<p>Feature cloumns是原始数据和Estimator模型之间的桥梁，它们被用来把各种形式的原始数据转换为模型能够使用的格式。深度神经网络只能处理数值数据，网络中的每个神经元节点执行一些针对输入数据和网络权重的乘法和加法运算。然而，现实中的有很多非数值的类别数据，比如产品的品牌、类目等，这些数据如果不加转换，神经网络是无法处理的。另一方面，即使是数值数据，在仍给网络进行训练之前有时也需要做一些处理，比如标准化、离散化等。</p>
+<p><img src="https://www.tensorflow.org/images/feature_columns/inputs_to_model_bridge.jpg" alt><br><a id="more"></a><br>在Tensorflow中，通过调用<code>tf.feature_column</code>模块来创建feature columns。有两大类feature column，一类是生成dense tensor的Dense Column；另一类是生成sparse tensor的Categorical Column。具体地，目前tensorflow提供的feature columns如下图所示。</p>
+<p><img src="https://www.tensorflow.org/images/feature_columns/some_constructors.jpg" alt="feature columns"></p>
+<h2 id="Numeric-column"><a href="#Numeric-column" class="headerlink" title="Numeric column"></a>Numeric column</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.numeric_column(</span><br><span class="line">    key,</span><br><span class="line">    shape&#x3D;(1,),</span><br><span class="line">    default_value&#x3D;None,</span><br><span class="line">    dtype&#x3D;tf.float32,</span><br><span class="line">    normalizer_fn&#x3D;None</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>key: 特征的名字。也就是对应的列名称。</li>
+<li>shape: 该key所对应的特征的shape. 默认是1，但是比如one-hot类型的，shape就不是1，而是实际的维度。总之，这里是key所对应的维度，不一定是1.</li>
+<li>default_value: 如果不存在使用的默认值</li>
+<li>normalizer_fn: 对该特征下的所有数据进行转换。如果需要进行normalize，那么就是使用normalize的函数.这里不仅仅局限于normalize，也可以是任何的转换方法，比如取对数，取指数，这仅仅是一种变换方法.</li>
+</ul>
+<p>创建numeric column的方法如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># Represent a tf.float64 scalar.</span><br><span class="line">numeric_feature_column&#x3D;tf.feature_column.numeric_column(key&#x3D;&quot;SepalLength&quot;, dtype&#x3D;tf.float64)</span><br></pre></td></tr></table></figure><br>默认情况下，numeric column创建的是一个标量值，也可以指定shape参数来创建向量、矩阵等多维数据。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># Represent a 10-element vector in which each cell contains a tf.float32.</span><br><span class="line">vector_feature_column &#x3D; tf.feature_column.numeric_column(key&#x3D;&quot;Bowling&quot;, shape&#x3D;10)</span><br><span class="line"></span><br><span class="line"># Represent a 10x5 matrix in which each cell contains a tf.float32.</span><br><span class="line">matrix_feature_column &#x3D; tf.feature_column.numeric_column(key&#x3D;&quot;MyMatrix&quot;, shape&#x3D;[10,5])</span><br></pre></td></tr></table></figure><br>我们还可以为numeric column指定数值变换的函数normalizer_fn，为对原始数据做一些变换操作。可以使用下面的代码测试numeric column的效果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">import tensorflow as tf</span><br><span class="line">from tensorflow import feature_column</span><br><span class="line">from tensorflow.python.feature_column.feature_column import _LazyBuilder</span><br><span class="line"></span><br><span class="line">def test_numeric():</span><br><span class="line">    price &#x3D; &#123;&#39;price&#39;: [[1.], [2.], [3.], [4.]]&#125;  # 4行样本</span><br><span class="line">    builder &#x3D; _LazyBuilder(price)</span><br><span class="line"></span><br><span class="line">    def transform_fn(x):</span><br><span class="line">        return x + 2</span><br><span class="line"></span><br><span class="line">    price_column &#x3D; feature_column.numeric_column(&#39;price&#39;, normalizer_fn&#x3D;transform_fn)</span><br><span class="line">    price_transformed_tensor &#x3D; price_column._get_dense_tensor(builder)</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        print(session.run([price_transformed_tensor]))</span><br><span class="line"></span><br><span class="line">    # 使用input_layer</span><br><span class="line">    price_transformed_tensor &#x3D; feature_column.input_layer(price, [price_column])</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        print(&#39;use input_layer&#39; + &#39;_&#39; * 40)</span><br><span class="line">        print(session.run([price_transformed_tensor]))</span><br><span class="line"></span><br><span class="line">test_numeric()</span><br></pre></td></tr></table></figure><br>执行后的输出为：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[array([[3.],</span><br><span class="line">       [4.],</span><br><span class="line">       [5.],</span><br><span class="line">       [6.]], dtype&#x3D;float32)]</span><br><span class="line">use input_layer________________________________________</span><br><span class="line">[array([[3.],</span><br><span class="line">       [4.],</span><br><span class="line">       [5.],</span><br><span class="line">       [6.]], dtype&#x3D;float32)]</span><br></pre></td></tr></table></figure></p>
+<h2 id="Bucketized-column"><a href="#Bucketized-column" class="headerlink" title="Bucketized column"></a>Bucketized column</h2><p>Bucketized column用来把numeric column的值按照提供的边界（boundaries)离散化为多个值。离散化是特征工程常用的一种方法。例如，把年份离散化为4个阶段，如下图所示。</p>
+<p><img src="https://www.tensorflow.org/images/feature_columns/bucketized_column.jpg" alt="year"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.bucketized_column(</span><br><span class="line">    source_column,</span><br><span class="line">    boundaries</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>source_column: 必须是numeric_column</li>
+<li>boundaries: 不同的桶。boundaries=[0., 1., 2.],产生的bucket就是, (-inf, 0.), [0., 1.), [1., 2.), and [2., +inf), 每一个区间分别表示0, 1, 2, 3,所以相当于分桶分了4个.</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># First, convert the raw input to a numeric column.</span><br><span class="line">numeric_feature_column &#x3D; tf.feature_column.numeric_column(&quot;Year&quot;)</span><br><span class="line"></span><br><span class="line"># Then, bucketize the numeric column on the years 1960, 1980, and 2000.</span><br><span class="line">bucketized_feature_column &#x3D; tf.feature_column.bucketized_column(</span><br><span class="line">    source_column &#x3D; numeric_feature_column,</span><br><span class="line">    boundaries &#x3D; [1960, 1980, 2000])</span><br></pre></td></tr></table></figure>
+<p>按照上述代码，可以把Year字段离散化为下表所示的结果。</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>Date Range</th>
+<th>Represented as…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&lt; 1960</td>
+<td>[1, 0, 0, 0]</td>
+</tr>
+<tr>
+<td>>= 1960 but &lt; 1980</td>
+<td>[0, 1, 0, 0]</td>
+</tr>
+<tr>
+<td>>= 1980 but &lt; 2000</td>
+<td>[0, 0, 1, 0]</td>
+</tr>
+<tr>
+<td>>= 2000</td>
+<td>[0, 0, 0, 1]</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>我们可以进一步做一些测试：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">def test_bucketized_column():</span><br><span class="line">    price &#x3D; &#123;&#39;price&#39;: [[5.], [15.], [25.], [35.]]&#125;  # 4行样本</span><br><span class="line">    price_column &#x3D; feature_column.numeric_column(&#39;price&#39;)</span><br><span class="line">    bucket_price &#x3D; feature_column.bucketized_column(price_column, [10, 20, 30, 40])</span><br><span class="line">    price_bucket_tensor &#x3D; feature_column.input_layer(price, [bucket_price])</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        print(session.run([price_bucket_tensor]))</span><br><span class="line"></span><br><span class="line">test_bucketized_column()</span><br></pre></td></tr></table></figure><br>测试结果为：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[array([[1., 0., 0., 0., 0.],</span><br><span class="line">       [0., 1., 0., 0., 0.],</span><br><span class="line">       [0., 0., 1., 0., 0.],</span><br><span class="line">       [0., 0., 0., 1., 0.]], dtype&#x3D;float32)]</span><br></pre></td></tr></table></figure></p>
+<h2 id="Categorical-identity-column"><a href="#Categorical-identity-column" class="headerlink" title="Categorical identity column"></a>Categorical identity column</h2><p>与Bucketized column类似，Categorical identity column用单个唯一值表示bucket。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># Create categorical output for an integer feature named &quot;my_feature_b&quot;,</span><br><span class="line"># The values of my_feature_b must be &gt;&#x3D; 0 and &lt; num_buckets</span><br><span class="line">identity_feature_column &#x3D; tf.feature_column.categorical_column_with_identity(</span><br><span class="line">    key&#x3D;&#39;my_feature_b&#39;,</span><br><span class="line">    num_buckets&#x3D;4) # Values [0, 4)</span><br></pre></td></tr></table></figure><br>上述代码可以生成下图所示的效果。<br><img src="https://www.tensorflow.org/images/feature_columns/categorical_column_with_identity.jpg" alt></p>
+<h2 id="Categorical-vocabulary-column"><a href="#Categorical-vocabulary-column" class="headerlink" title="Categorical vocabulary column"></a>Categorical vocabulary column</h2><p>顾名思义，Categorical vocabulary column把一个vocabulary中的string映射为数值型的类别特征，是做one-hot编码的很好的方法。在tensorflow中有两种提供词汇表的方法，一种是用list，另一种是用file，对应的feature column分别为：</p>
+<ul>
+<li>tf.feature_column.categorical_column_with_vocabulary_list</li>
+<li>tf.feature_column.categorical_column_with_vocabulary_file</li>
+</ul>
+<p>两者的定义如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.categorical_column_with_vocabulary_list(</span><br><span class="line">    key,</span><br><span class="line">    vocabulary_list,</span><br><span class="line">    dtype&#x3D;None,</span><br><span class="line">    default_value&#x3D;-1,</span><br><span class="line">    num_oov_buckets&#x3D;0</span><br><span class="line">)</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>key: feature名字</li>
+<li>vocabulary_list: 对于category来说，进行转换的list.也就是category列表.</li>
+<li>dtype: 仅仅string和int被支持，其他的类型是无法进行这个操作的.</li>
+<li>default_value: 当不在vocabulary_list中的默认值，这时候num_oov_buckets必须是0.</li>
+<li>num_oov_buckets: 用来处理那些不在vocabulary_list中的值，如果是0，那么使用default_value进行填充;如果大于0，则会在[len(vocabulary_list), len(vocabulary_list)+num_oov_buckets]这个区间上重新计算当前特征的值.</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.categorical_column_with_vocabulary_file(</span><br><span class="line">    key,</span><br><span class="line">    vocabulary_file,</span><br><span class="line">    vocabulary_size&#x3D;None,</span><br><span class="line">    num_oov_buckets&#x3D;0,</span><br><span class="line">    default_value&#x3D;None,</span><br><span class="line">    dtype&#x3D;tf.string</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>vocabulary_file: 存储词汇表的文件名</li>
+<li>其他参数的含义与<code>tf.feature_column.categorical_column_with_vocabulary_list</code>相同</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># Given input &quot;feature_name_from_input_fn&quot; which is a string,</span><br><span class="line"># create a categorical feature by mapping the input to one of</span><br><span class="line"># the elements in the vocabulary list.</span><br><span class="line">vocabulary_feature_column &#x3D;</span><br><span class="line">    tf.feature_column.categorical_column_with_vocabulary_list(</span><br><span class="line">        key&#x3D;feature_name_from_input_fn,</span><br><span class="line">        vocabulary_list&#x3D;[&quot;kitchenware&quot;, &quot;electronics&quot;, &quot;sports&quot;])</span><br></pre></td></tr></table></figure>
+<p>上述代码得到的结果如下：<br><img src="https://www.tensorflow.org/images/feature_columns/categorical_column_with_vocabulary.jpg" alt></p>
+<p>为了加深理解，进一步做一些测试：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">def test_categorical_column_with_vocabulary_list():</span><br><span class="line">    color_data &#x3D; &#123;&#39;color&#39;: [[&#39;R&#39;, &#39;R&#39;], [&#39;G&#39;, &#39;R&#39;], [&#39;B&#39;, &#39;G&#39;], [&#39;A&#39;, &#39;A&#39;]]&#125;  # 4行样本</span><br><span class="line">    builder &#x3D; _LazyBuilder(color_data)</span><br><span class="line">    color_column &#x3D; feature_column.categorical_column_with_vocabulary_list(</span><br><span class="line">        &#39;color&#39;, [&#39;R&#39;, &#39;G&#39;, &#39;B&#39;], dtype&#x3D;tf.string, default_value&#x3D;-1</span><br><span class="line">    )</span><br><span class="line"></span><br><span class="line">    color_column_tensor &#x3D; color_column._get_sparse_tensors(builder)</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(session.run([color_column_tensor.id_tensor]))</span><br><span class="line"></span><br><span class="line">    # 将稀疏的转换成dense，也就是one-hot形式，只是multi-hot</span><br><span class="line">    color_column_identy &#x3D; feature_column.indicator_column(color_column)</span><br><span class="line">    color_dense_tensor &#x3D; feature_column.input_layer(color_data, [color_column_identy])</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(&#39;use input_layer&#39; + &#39;_&#39; * 40)</span><br><span class="line">        print(session.run([color_dense_tensor]))</span><br><span class="line"></span><br><span class="line">test_categorical_column_with_vocabulary_list()</span><br></pre></td></tr></table></figure><br>注意:</p>
+<ul>
+<li>input_layer: 只接受dense tensor</li>
+<li>tables_initializer: 在sparser的时候使用的，如果不进行初始化会出现 Table not initialized. [Node: hash_table_Lookup = LookupTableFindV2 这样的异常</li>
+</ul>
+<p>结果如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[SparseTensorValue(indices&#x3D;array([[0, 0],</span><br><span class="line">       [0, 1],</span><br><span class="line">       [1, 0],</span><br><span class="line">       [1, 1],</span><br><span class="line">       [2, 0],</span><br><span class="line">       [2, 1],</span><br><span class="line">       [3, 0],</span><br><span class="line">       [3, 1]], dtype&#x3D;int64), values&#x3D;array([ 0,  0,  1,  0,  2,  1, -1, -1], dtype&#x3D;int64), dense_shape&#x3D;array([4, 2], dtype&#x3D;int64))]</span><br><span class="line">use input_layer________________________________________</span><br><span class="line">[array([[2., 0., 0.],</span><br><span class="line">       [1., 1., 0.],</span><br><span class="line">       [0., 1., 1.],</span><br><span class="line">       [0., 0., 0.]], dtype&#x3D;float32)]</span><br></pre></td></tr></table></figure></p>
+<h2 id="Hashed-Column"><a href="#Hashed-Column" class="headerlink" title="Hashed Column"></a>Hashed Column</h2><p>为类别特征提供词汇表有时候会过于繁琐，特别是在词汇表非常大的时候，词汇表会非常消耗内存。<code>tf.feature_column.categorical_column_with_hash_bucket</code>允许用户指定类别的总数，通过hash的方式来得到最终的类别ID。伪代码如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># pseudocode</span><br><span class="line">feature_id &#x3D; hash(raw_feature) % hash_buckets_size</span><br></pre></td></tr></table></figure><br>用hash的方式产生类别ID，不可避免地会遇到hash冲突的问题，即可有多多个原来不相同的类别会产生相同的类别ID。因此，设置hash_bucket_size参数会显得比较重要。实践表明，hash冲突不会对神经网络模型造成太大的影响，因为模型可以通过其他特征作进一步区分。</p>
+<p><img src="https://www.tensorflow.org/images/feature_columns/hashed_column.jpg" alt></p>
+<p>同样来做一些测试，看看最终效果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">def test_categorical_column_with_hash_bucket():</span><br><span class="line">    color_data &#x3D; &#123;&#39;color&#39;: [[2], [5], [-1], [0]]&#125;  # 4行样本</span><br><span class="line">    builder &#x3D; _LazyBuilder(color_data)</span><br><span class="line">    color_column &#x3D; feature_column.categorical_column_with_hash_bucket(&#39;color&#39;, 7, dtype&#x3D;tf.int32)</span><br><span class="line">    color_column_tensor &#x3D; color_column._get_sparse_tensors(builder)</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(session.run([color_column_tensor.id_tensor]))</span><br><span class="line"></span><br><span class="line">    # 将稀疏的转换成dense，也就是one-hot形式，只是multi-hot</span><br><span class="line">    color_column_identy &#x3D; feature_column.indicator_column(color_column)</span><br><span class="line">    color_dense_tensor &#x3D; feature_column.input_layer(color_data, [color_column_identy])</span><br><span class="line"></span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(&#39;use input_layer&#39; + &#39;_&#39; * 40)</span><br><span class="line">        print(session.run([color_dense_tensor]))</span><br><span class="line"></span><br><span class="line">test_categorical_column_with_hash_bucket()</span><br></pre></td></tr></table></figure><br>运行结果如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[SparseTensorValue(indices&#x3D;array([[0, 0],</span><br><span class="line">       [1, 0],</span><br><span class="line">       [3, 0]], dtype&#x3D;int64), values&#x3D;array([5, 1, 2], dtype&#x3D;int64), dense_shape&#x3D;array([4, 1], dtype&#x3D;int64))]</span><br><span class="line">use input_layer________________________________________</span><br><span class="line">[array([[0., 0., 0., 0., 0., 1., 0.],</span><br><span class="line">       [0., 1., 0., 0., 0., 0., 0.],</span><br><span class="line">       [0., 0., 0., 0., 0., 0., 0.],</span><br><span class="line">       [0., 0., 1., 0., 0., 0., 0.]], dtype&#x3D;float32)]</span><br></pre></td></tr></table></figure><br>需要注意的是，使用hash bucket的时候，原始值中-1或者空字符串””会被忽略，不会输出结果。</p>
+<h2 id="Crossed-column"><a href="#Crossed-column" class="headerlink" title="Crossed column"></a>Crossed column</h2><p>交叉组合特征也是一种很常用的特征工程手段，尤其是在使用LR模型时。Crossed column仅仅适用于sparser特征，产生的依然是sparsor特征。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.crossed_column(</span><br><span class="line">    keys,</span><br><span class="line">    hash_bucket_size,</span><br><span class="line">    hash_key&#x3D;None</span><br><span class="line">)</span><br></pre></td></tr></table></figure><br>具体地，Crossed特征对keys的笛卡尔积执行hash操作，再把hash的结果对hash_bucket_size取模得到最终的结果：<code>Hash(cartesian product of features) % hash_bucket_size</code>。</p>
+<p>测试代码如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">def test_crossed_column():</span><br><span class="line">    &quot;&quot;&quot; crossed column测试 &quot;&quot;&quot;</span><br><span class="line">    featrues &#x3D; &#123;</span><br><span class="line">        &#39;price&#39;: [[&#39;A&#39;], [&#39;B&#39;], [&#39;C&#39;]],</span><br><span class="line">        &#39;color&#39;: [[&#39;R&#39;], [&#39;G&#39;], [&#39;B&#39;]]</span><br><span class="line">    &#125;</span><br><span class="line">    price &#x3D; feature_column.categorical_column_with_vocabulary_list(&#39;price&#39;, [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;D&#39;])</span><br><span class="line">    color &#x3D; feature_column.categorical_column_with_vocabulary_list(&#39;color&#39;, [&#39;R&#39;, &#39;G&#39;, &#39;B&#39;])</span><br><span class="line">    p_x_c &#x3D; feature_column.crossed_column([price, color], 16)</span><br><span class="line">    p_x_c_identy &#x3D; feature_column.indicator_column(p_x_c)</span><br><span class="line">    p_x_c_identy_dense_tensor &#x3D; feature_column.input_layer(featrues, [p_x_c_identy])</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(session.run([p_x_c_identy_dense_tensor]))</span><br><span class="line">test_crossed_column()</span><br></pre></td></tr></table></figure><br>结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[array([[0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0.],</span><br><span class="line">       [0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.],</span><br><span class="line">       [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]],</span><br><span class="line">      dtype&#x3D;float32)]</span><br></pre></td></tr></table></figure></p>
+<h2 id="Indicator-and-embedding-columns"><a href="#Indicator-and-embedding-columns" class="headerlink" title="Indicator and embedding columns"></a>Indicator and embedding columns</h2><p>Indicator columns 和 embedding columns 不能直接作用在原始特征上，而是作用在categorical columns上。</p>
+<p>在前面的众多例子中，我们已经使用过indicator_column来把categorical column得到的稀疏tensor转换为one-hot或者multi-hot形式的稠密tensor，这里就不赘述了。</p>
+<p>当某些特征的类别数量非常大时，使用indicator_column来把原始数据转换为神经网络的输入就变得非常不灵活，这时通常使用embedding column把原始特征映射为一个低维稠密的实数向量。同一类别的embedding向量间的距离通常可以用来度量类别直接的相似性。</p>
+<p>Embedding column与indicator column之间的区别可以用下图表示。<br><img src="https://www.tensorflow.org/images/feature_columns/embedding_vs_indicator.jpg" alt></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.embedding_column(</span><br><span class="line">    categorical_column,</span><br><span class="line">    dimension,</span><br><span class="line">    combiner&#x3D;&#39;mean&#39;,</span><br><span class="line">    initializer&#x3D;None,</span><br><span class="line">    ckpt_to_load_from&#x3D;None,</span><br><span class="line">    tensor_name_in_ckpt&#x3D;None,</span><br><span class="line">    max_norm&#x3D;None,</span><br><span class="line">    trainable&#x3D;True</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>categorical_column: 使用categoryical_column产生的sparsor column</li>
+<li>dimension: 定义embedding的维数</li>
+<li>combiner: 对于多个entries进行的推导。默认是meam, 但是 sqrtn在词袋模型中，有更好的准确度。</li>
+<li>initializer: 初始化方法，默认使用高斯分布来初始化。</li>
+<li>tensor_name_in_ckpt: 可以从check point中恢复</li>
+<li>ckpt_to_load_from: check point file，这是在 tensor_name_in_ckpt 不为空的情况下设置的.</li>
+<li>max_norm: 默认是l2</li>
+<li>trainable: 是否可训练的，默认是true</li>
+</ul>
+<p>测试代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">def test_embedding():</span><br><span class="line">    tf.set_random_seed(1)</span><br><span class="line">    color_data &#x3D; &#123;&#39;color&#39;: [[&#39;R&#39;, &#39;G&#39;], [&#39;G&#39;, &#39;A&#39;], [&#39;B&#39;, &#39;B&#39;], [&#39;A&#39;, &#39;A&#39;]]&#125;  # 4行样本</span><br><span class="line">    builder &#x3D; _LazyBuilder(color_data)</span><br><span class="line">    color_column &#x3D; feature_column.categorical_column_with_vocabulary_list(</span><br><span class="line">        &#39;color&#39;, [&#39;R&#39;, &#39;G&#39;, &#39;B&#39;], dtype&#x3D;tf.string, default_value&#x3D;-1</span><br><span class="line">    )</span><br><span class="line">    color_column_tensor &#x3D; color_column._get_sparse_tensors(builder)</span><br><span class="line"></span><br><span class="line">    color_embeding &#x3D; feature_column.embedding_column(color_column, 4, combiner&#x3D;&#39;sum&#39;)</span><br><span class="line">    color_embeding_dense_tensor &#x3D; feature_column.input_layer(color_data, [color_embeding])</span><br><span class="line"></span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(session.run([color_column_tensor.id_tensor]))</span><br><span class="line">        print(&#39;embeding&#39; + &#39;_&#39; * 40)</span><br><span class="line">        print(session.run([color_embeding_dense_tensor]))</span><br><span class="line"></span><br><span class="line">test_embedding()</span><br></pre></td></tr></table></figure><br>测试结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[SparseTensorValue(indices&#x3D;array([[0, 0],</span><br><span class="line">       [0, 1],</span><br><span class="line">       [1, 0],</span><br><span class="line">       [1, 1],</span><br><span class="line">       [2, 0],</span><br><span class="line">       [2, 1],</span><br><span class="line">       [3, 0],</span><br><span class="line">       [3, 1]], dtype&#x3D;int64), values&#x3D;array([ 0,  1,  1, -1,  2,  2, -1, -1], dtype&#x3D;int64), dense_shape&#x3D;array([4, 2], dtype&#x3D;int64))]</span><br><span class="line">embeding________________________________________</span><br><span class="line">[array([[-0.8339818 , -0.4975947 ,  0.09368954,  0.16094571],</span><br><span class="line">       [-0.6342659 , -0.19216162,  0.18877633,  0.17648602],</span><br><span class="line">       [ 1.5531666 ,  0.27847385,  0.12863553,  1.2628161 ],</span><br><span class="line">       [ 0.        ,  0.        ,  0.        ,  0.        ]],</span><br><span class="line">      dtype&#x3D;float32)]</span><br></pre></td></tr></table></figure><br>从上面的测试结果可以看出不在vocabulary里的数据’A’在经过<code>categorical_column_with_vocabulary_list</code>操作时映射为默认值-1，而<strong>默认值-1在embeding column时映射为0向量</strong>，这是一个很有用的特性，可以用-1来填充一个不定长的ID序列，这样可以得到定长的序列，然后经过embedding column之后，填充的-1值不影响原来的结果。在下一篇文章中，我会通过一个例子来演示这个特性。</p>
+<p>有时候在同一个网络模型中，有多个特征可能需要共享相同的embeding映射空间，比如用户历史行为序列中的商品ID和候选商品ID，这时候可以用到<code>tf.feature_column.shared_embedding_columns</code>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.shared_embedding_columns(</span><br><span class="line">    categorical_columns,</span><br><span class="line">    dimension,</span><br><span class="line">    combiner&#x3D;&#39;mean&#39;,</span><br><span class="line">    initializer&#x3D;None,</span><br><span class="line">    shared_embedding_collection_name&#x3D;None,</span><br><span class="line">    ckpt_to_load_from&#x3D;None,</span><br><span class="line">    tensor_name_in_ckpt&#x3D;None,</span><br><span class="line">    max_norm&#x3D;None,</span><br><span class="line">    trainable&#x3D;True</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>categorical_columns 为需要共享embeding映射空间的类别特征列表</li>
+<li>其他参数与embedding column类似</li>
+</ul>
+<p>测试代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">def test_shared_embedding_column_with_hash_bucket():</span><br><span class="line">    color_data &#x3D; &#123;&#39;color&#39;: [[2, 2], [5, 5], [0, -1], [0, 0]],</span><br><span class="line">                  &#39;color2&#39;: [[2], [5], [-1], [0]]&#125;  # 4行样本</span><br><span class="line">    builder &#x3D; _LazyBuilder(color_data)</span><br><span class="line">    color_column &#x3D; feature_column.categorical_column_with_hash_bucket(&#39;color&#39;, 7, dtype&#x3D;tf.int32)</span><br><span class="line">    color_column_tensor &#x3D; color_column._get_sparse_tensors(builder)</span><br><span class="line">    color_column2 &#x3D; feature_column.categorical_column_with_hash_bucket(&#39;color2&#39;, 7, dtype&#x3D;tf.int32)</span><br><span class="line">    color_column_tensor2 &#x3D; color_column2._get_sparse_tensors(builder)</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(&#39;not use input_layer&#39; + &#39;_&#39; * 40)</span><br><span class="line">        print(session.run([color_column_tensor.id_tensor]))</span><br><span class="line">        print(session.run([color_column_tensor2.id_tensor]))</span><br><span class="line"></span><br><span class="line">    # 将稀疏的转换成dense，也就是one-hot形式，只是multi-hot</span><br><span class="line">    color_column_embed &#x3D; feature_column.shared_embedding_columns([color_column2, color_column], 3, combiner&#x3D;&#39;sum&#39;)</span><br><span class="line">    print(type(color_column_embed))</span><br><span class="line">    color_dense_tensor &#x3D; feature_column.input_layer(color_data, color_column_embed)</span><br><span class="line"></span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(&#39;use input_layer&#39; + &#39;_&#39; * 40)</span><br><span class="line">        print(session.run(color_dense_tensor))</span><br><span class="line"></span><br><span class="line">test_shared_embedding_column_with_hash_bucket()</span><br></pre></td></tr></table></figure><br>测试结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">not use input_layer________________________________________</span><br><span class="line">[SparseTensorValue(indices&#x3D;array([[0, 0],</span><br><span class="line">       [0, 1],</span><br><span class="line">       [1, 0],</span><br><span class="line">       [1, 1],</span><br><span class="line">       [2, 0],</span><br><span class="line">       [3, 0],</span><br><span class="line">       [3, 1]], dtype&#x3D;int64), values&#x3D;array([5, 5, 1, 1, 2, 2, 2], dtype&#x3D;int64), dense_shape&#x3D;array([4, 2], dtype&#x3D;int64))]</span><br><span class="line">[SparseTensorValue(indices&#x3D;array([[0, 0],</span><br><span class="line">       [1, 0],</span><br><span class="line">       [3, 0]], dtype&#x3D;int64), values&#x3D;array([5, 1, 2], dtype&#x3D;int64), dense_shape&#x3D;array([4, 1], dtype&#x3D;int64))]</span><br><span class="line">&lt;class &#39;list&#39;&gt;</span><br><span class="line">use input_layer________________________________________</span><br><span class="line">[[ 0.37802923 -0.27973637  0.11547407  0.75605845 -0.55947274  0.23094814]</span><br><span class="line"> [-0.5264772   0.86587846 -0.36023238 -1.0529544   1.7317569  -0.72046477]</span><br><span class="line"> [ 0.          0.          0.         -0.9269535  -0.17690836  0.42011076]</span><br><span class="line"> [-0.9269535  -0.17690836  0.42011076 -1.853907   -0.35381672  0.8402215 ]]</span><br></pre></td></tr></table></figure><br>需要注意的是，<strong><code>tf.feature_column.shared_embedding_columns</code>的返回值是一个与参数categorical_columns维数相同的列表</strong>。</p>
+<h2 id="Weighted-categorical-column"><a href="#Weighted-categorical-column" class="headerlink" title="Weighted categorical column"></a>Weighted categorical column</h2><p>有时候我们需要给一个类别特征赋予一定的权重，比如给用户行为序列按照行为发生的时间到某个特定时间的差来计算不同的权重，这是可以用到weighted_categorical_column。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">tf.feature_column.weighted_categorical_column(</span><br><span class="line">    categorical_column,</span><br><span class="line">    weight_feature_key,</span><br><span class="line">    dtype&#x3D;tf.float32</span><br><span class="line">)</span><br></pre></td></tr></table></figure></p>
+<p>测试代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">def test_weighted_categorical_column():</span><br><span class="line">    color_data &#x3D; &#123;&#39;color&#39;: [[&#39;R&#39;], [&#39;G&#39;], [&#39;B&#39;], [&#39;A&#39;]],</span><br><span class="line">                  &#39;weight&#39;: [[1.0], [2.0], [4.0], [8.0]]&#125;  # 4行样本</span><br><span class="line">    color_column &#x3D; feature_column.categorical_column_with_vocabulary_list(</span><br><span class="line">        &#39;color&#39;, [&#39;R&#39;, &#39;G&#39;, &#39;B&#39;], dtype&#x3D;tf.string, default_value&#x3D;-1</span><br><span class="line">    )</span><br><span class="line">    color_weight_categorical_column &#x3D; feature_column.weighted_categorical_column(color_column, &#39;weight&#39;)</span><br><span class="line">    builder &#x3D; _LazyBuilder(color_data)</span><br><span class="line">    with tf.Session() as session:</span><br><span class="line">        id_tensor, weight &#x3D; color_weight_categorical_column._get_sparse_tensors(builder)</span><br><span class="line">        session.run(tf.global_variables_initializer())</span><br><span class="line">        session.run(tf.tables_initializer())</span><br><span class="line">        print(&#39;weighted categorical&#39; + &#39;-&#39; * 40)</span><br><span class="line">        print(session.run([id_tensor]))</span><br><span class="line">        print(&#39;-&#39; * 40)</span><br><span class="line">        print(session.run([weight]))</span><br><span class="line">test_weighted_categorical_column()</span><br></pre></td></tr></table></figure><br>测试结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">weighted categorical----------------------------------------</span><br><span class="line">[SparseTensorValue(indices&#x3D;array([[0, 0],</span><br><span class="line">       [1, 0],</span><br><span class="line">       [2, 0],</span><br><span class="line">       [3, 0]], dtype&#x3D;int64), values&#x3D;array([ 0,  1,  2, -1], dtype&#x3D;int64), dense_shape&#x3D;array([4, 1], dtype&#x3D;int64))]</span><br><span class="line">----------------------------------------</span><br><span class="line">[SparseTensorValue(indices&#x3D;array([[0, 0],</span><br><span class="line">       [1, 0],</span><br><span class="line">       [2, 0],</span><br><span class="line">       [3, 0]], dtype&#x3D;int64), values&#x3D;array([1., 2., 4., 8.], dtype&#x3D;float32), dense_shape&#x3D;array([4, 1], dtype&#x3D;int64))]</span><br></pre></td></tr></table></figure><br>可以看到，相对于前面其他categorical_column来说多了weight这个tensor。weighted_categorical_column的一个用例就是，<strong>weighted_categorical_column的结果传入给shared_embedding_columns可以对ID序列的embeding向量做加权融合</strong>。限于篇幅的原因，完整的使用案例请期待下一篇博文。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p><a target="_blank" rel="noopener" href="https://www.tensorflow.org/guide/feature_columns?hl=zh-cn">https://www.tensorflow.org/guide/feature_columns?hl=zh-cn</a></p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" rel="tag"># 深度学习</a>
+              <a href="/tags/tensorflow/" rel="tag"># tensorflow</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/tensorflow-word-cnn/" rel="prev" title="基于Tensorflow高阶API构建大规模分布式深度学习模型系列之自定义Estimator（以文本分类CNN模型为例）">
+      <i class="fa fa-chevron-left"></i> 基于Tensorflow高阶API构建大规模分布式深度学习模型系列之自定义Estimator（以文本分类CNN模型为例）
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/esmm-1/" rel="next" title="构建分布式Tensorflow模型系列之CVR预估案例ESMM模型">
+      构建分布式Tensorflow模型系列之CVR预估案例ESMM模型 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Numeric-column"><span class="nav-number">1.</span> <span class="nav-text">Numeric column</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Bucketized-column"><span class="nav-number">2.</span> <span class="nav-text">Bucketized column</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Categorical-identity-column"><span class="nav-number">3.</span> <span class="nav-text">Categorical identity column</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Categorical-vocabulary-column"><span class="nav-number">4.</span> <span class="nav-text">Categorical vocabulary column</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Hashed-Column"><span class="nav-number">5.</span> <span class="nav-text">Hashed Column</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Crossed-column"><span class="nav-number">6.</span> <span class="nav-text">Crossed column</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Indicator-and-embedding-columns"><span class="nav-number">7.</span> <span class="nav-text">Indicator and embedding columns</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Weighted-categorical-column"><span class="nav-number">8.</span> <span class="nav-text">Weighted categorical column</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">9.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">255k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">3:52</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
