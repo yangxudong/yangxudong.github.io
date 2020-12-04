@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>http://xudongyang.coding.me/utf8/</loc>
+    <loc>http://xudongyang.coding.me/rule-learning/</loc>
+    <lastmod>2020-12-04</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/similarity-search/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
     <loc>http://xudongyang.coding.me/xdeepfm/</loc>
+    <lastmod>2020-12-04</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/dcn/</loc>
+    <lastmod>2020-12-04</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/deep-metric-learning/</loc>
+    <lastmod>2020-12-04</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/utf8/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
@@ -153,10 +169,6 @@
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
-    <loc>http://xudongyang.coding.me/deep-metric-learning/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
     <loc>http://xudongyang.coding.me/deep-learning/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
@@ -166,10 +178,6 @@
   </url>
   <url>
     <loc>http://xudongyang.coding.me/deep-learning-in-search/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
-    <loc>http://xudongyang.coding.me/dcn/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>

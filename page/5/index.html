@@ -164,6 +164,234 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/machine-learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/machine-learning/" class="post-title-link" itemprop="url">机器学习完整过程案例分步解析</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2014-05-24 15:18:34" itemprop="dateCreated datePublished" datetime="2014-05-24T15:18:34+08:00">2014-05-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/machine-learning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/machine-learning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>7.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>所谓学习问题，是指观察由n个样本组成的集合，并根据这些数据来预测未知数据的性质。</p>
+<h2 id="学习任务（一个二分类问题）："><a href="#学习任务（一个二分类问题）：" class="headerlink" title="学习任务（一个二分类问题）："></a>学习任务（一个二分类问题）：</h2><p>区分一个普通的互联网检索Query是否具有某个垂直领域的意图。假设现在有一个O2O领域的垂直搜索引擎，专门为用户提供团购、优惠券的检索；同时存在一个通用的搜索引擎，比如百度，通用搜索引擎希望能够识别出一个Query是否具有O2O检索意图，如果有则调用O2O垂直搜索引擎，获取结果作为通用搜索引擎的结果补充。</p>
+<p>我们的目的是学习出一个分类器（classifier），分类器可以理解为一个函数，其输入为一个Query，输出为0（表示该Query不具有o2o意图）或1（表示该Query具有o2o意图）。</p>
+<h2 id="特征提取："><a href="#特征提取：" class="headerlink" title="特征提取："></a>特征提取：</h2><p>要完成这样一个学习任务，首先我们必须找出决定一个Query是否具有O2O意图的影响因素，这些影响因素称之为特征（feature）。特征的好坏很大程度上决定了分类器的效果。在机器学习领域我们都知道特征比模型（学习算法）更重要。（顺便说一下，工业界的人都是这么认为的，学术界的人可能不以为然，他们整天捣鼓算法，发出来的文章大部分都没法在实际中应用。）举个例子，如果我们的特征选得很好，可能我们用简单的规则就能判断出最终的结果，甚至不需要模型。比如，要判断一个人是男还是女（人类当然很好判断，一看就知道，这里我们假设由计算机来完成这个任务，计算机有很多传感器（摄像头、体重器等等）可以采集到各种数据），我们可以找到很多特征：身高、体重、皮肤颜色、头发长度等等。因为根据统计我们知道男人一般比女人重，比女人高，皮肤比女人黑，头发比女人短；所以这些特征都有一定的区分度，但是总有反例存在。我们用最好的算法可能准确率也达不到100%。假设计算机还能够读取人的身份证号码，那么我们可能获得一个更强的特征：身份证号码的倒数第二位是否是偶数。根据身份证编码规则，我们知道男性的身份证号码的倒数第二位是奇数，女生是偶数。因此，有了这个特征其他的特征都不需要了，而且我们的分类器也很简单，不需要复杂的算法。</p>
+<p>言归正传，对于O2O Query意图识别这一学习任务，我们可以用的特征可能有：Query在垂直引擎里能够检索到的结果数量、Query在垂直引擎里能够检索到的结果的类目困惑度（perplexity）（检索结果的类目越集中说明其意图越强）、Query能否预测到特征的O2O商品类目、Query是否包含O2O产品词或品牌词、Query在垂直引擎的历史展现次数（PV)和点击率(ctr)、Query在垂直引擎的检索结果相关性等等。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/machine-learning/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/utf8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/utf8/" class="post-title-link" itemprop="url">UTF-8编码的中文字符串拆分成单字、获取UTF-8字符串的字符个数的代码及原理</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2014-04-21 18:04:15" itemprop="dateCreated datePublished" datetime="2014-04-21T18:04:15+08:00">2014-04-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/" itemprop="url" rel="index"><span itemprop="name">程序设计</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/c/" itemprop="url" rel="index"><span itemprop="name">c++</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/utf8/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/utf8/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="字符编码简介"><a href="#字符编码简介" class="headerlink" title="字符编码简介"></a>字符编码简介</h2><h3 id="1-ASCII码"><a href="#1-ASCII码" class="headerlink" title="1. ASCII码"></a>1. ASCII码</h3><p>在计算机内部，所有的信息最终都表示为一个二进制的字符串。每一个二进制位（bit）有0和1两种状态，因此八个二进制位就可以组合出256种状态，这被称为一个字节（byte）。也就是说，一个字节一共可以用来表示256种不同的状态，每一个状态对应一个符号，就是256个符号，从0000000到11111111。</p>
+<p>上个世纪60年代，美国制定了一套字符编码，对英语字符与二进制位之间的关系，做了统一规定。这被称为ASCII码，一直沿用至今。<br>ASCII码一共规定了128个字符的编码，比如空格“SPACE”是32（二进制00100000），大写的字母A是65（二进制01000001）。这128个符号（包括32个不能打印出来的控制符号），只占用了一个字节的后面7位，最前面的1位统一规定为0。</p>
+<h3 id="2-Unicode"><a href="#2-Unicode" class="headerlink" title="2. Unicode"></a>2. Unicode</h3><p>英语用128个符号编码就够了，但是用来表示其他语言，128个符号是不够的。因此，很多欧洲国家发明了很多非ASCII码，同样用一个字节，用最高位为1的区间（既128~255）来扩展原来的ASCII码，其中一种比较有名的就是IBM字符编码。这样一来，这些欧洲国家使用的编码体系，可以表示最多256个符号。但是，这里又出现了新的问题。不同的国家有不同的字母，因此，哪怕它们都使用256个符号的编码方式，代表的字母却不一样。比如，130在法语编码中代表了é，在希伯来语编码中却代表了字母Gimel (ג)，在俄语编码中又会代表另一个符号。但是不管怎样，所有这些编码方式中，0—127表示的符号是一样的，不一样的只是128—255的这一段。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/utf8/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/simrank-evidence/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -795,20 +1023,20 @@ I_n, & k=0
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-count">47</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-count">16</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">61</span>
+        <span class="site-state-item-count">67</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -870,12 +1098,12 @@ I_n, & k=0
     <span class="post-meta-item-icon">
       <i class="fa fa-chart-area"></i>
     </span>
-    <span title="站点总字数">255k</span>
+    <span title="站点总字数">277k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="站点阅读时长">3:52</span>
+    <span title="站点阅读时长">4:11</span>
 </div>
 
         
