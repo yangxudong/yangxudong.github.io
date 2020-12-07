@@ -2,7 +2,35 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>http://xudongyang.coding.me/query-rewrite/</loc>
+    <loc>http://xudongyang.coding.me/deep-metric-learning/</loc>
+    
+    <lastmod>2020-12-07</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/dsmm/</loc>
+    
+    <lastmod>2020-12-07</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/dcn/</loc>
+    
+    <lastmod>2020-12-07</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/esmm-1/</loc>
+    
+    <lastmod>2020-12-07</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/esmm/</loc>
     
     <lastmod>2020-12-07</lastmod>
     
@@ -10,6 +38,20 @@
   
   <url>
     <loc>http://xudongyang.coding.me/about/index.html</loc>
+    
+    <lastmod>2020-12-07</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/rank-distance/</loc>
+    
+    <lastmod>2020-12-07</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://xudongyang.coding.me/query-rewrite/</loc>
     
     <lastmod>2020-12-07</lastmod>
     
@@ -38,20 +80,6 @@
   
   <url>
     <loc>http://xudongyang.coding.me/xdeepfm/</loc>
-    
-    <lastmod>2020-12-04</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/dcn/</loc>
-    
-    <lastmod>2020-12-04</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/deep-metric-learning/</loc>
     
     <lastmod>2020-12-04</lastmod>
     
@@ -198,13 +226,6 @@
   </url>
   
   <url>
-    <loc>http://xudongyang.coding.me/rank-distance/</loc>
-    
-    <lastmod>2020-12-04</lastmod>
-    
-  </url>
-  
-  <url>
     <loc>http://xudongyang.coding.me/machine-learning/</loc>
     
     <lastmod>2020-12-04</lastmod>
@@ -283,27 +304,6 @@
   
   <url>
     <loc>http://xudongyang.coding.me/fast-dpp-map/</loc>
-    
-    <lastmod>2020-12-04</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/esmm/</loc>
-    
-    <lastmod>2020-12-04</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/esmm-1/</loc>
-    
-    <lastmod>2020-12-04</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/dsmm/</loc>
     
     <lastmod>2020-12-04</lastmod>
     
@@ -438,6 +438,13 @@
   </url>
   
   <url>
+    <loc>http://xudongyang.coding.me/tags/%E8%AF%AD%E4%B9%89%E7%9B%B8%E4%BC%BC%E5%BA%A6/</loc>
+    <lastmod>2020-12-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>http://xudongyang.coding.me/tags/tensorflow/</loc>
     <lastmod>2020-12-07</lastmod>
     <changefreq>daily</changefreq>
@@ -446,13 +453,6 @@
   
   <url>
     <loc>http://xudongyang.coding.me/tags/deep-learning/</loc>
-    <lastmod>2020-12-07</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>http://xudongyang.coding.me/tags/%E8%AF%AD%E4%B9%89%E7%9B%B8%E4%BC%BC%E5%BA%A6/</loc>
     <lastmod>2020-12-07</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>

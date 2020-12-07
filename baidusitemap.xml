@@ -1,6 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>http://xudongyang.coding.me/deep-metric-learning/</loc>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/dsmm/</loc>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/dcn/</loc>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/esmm-1/</loc>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/esmm/</loc>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/rank-distance/</loc>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
     <loc>http://xudongyang.coding.me/query-rewrite/</loc>
     <lastmod>2020-12-07</lastmod>
   </url>
@@ -18,14 +42,6 @@
   </url>
   <url>
     <loc>http://xudongyang.coding.me/xdeepfm/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
-    <loc>http://xudongyang.coding.me/dcn/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
-    <loc>http://xudongyang.coding.me/deep-metric-learning/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
@@ -101,10 +117,6 @@
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
-    <loc>http://xudongyang.coding.me/rank-distance/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
     <loc>http://xudongyang.coding.me/machine-learning/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
@@ -150,18 +162,6 @@
   </url>
   <url>
     <loc>http://xudongyang.coding.me/fast-dpp-map/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
-    <loc>http://xudongyang.coding.me/esmm/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
-    <loc>http://xudongyang.coding.me/esmm-1/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
-    <loc>http://xudongyang.coding.me/dsmm/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
