@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="背景介绍随着互联网扁平化的发展，内容信息的分发和获取比以往更加便利，这也大大方便了以色情、赌博、非法政治言论、违禁药品买卖等为代表的违规信息的快速传播。这类信息的传播会造成难以估计的社会影响，甚至有可能影响国家的安定和谐。网站所有者可以随意更改网站页面的内容，发布任意形式的信息。论坛、博客、社交产品等web 2.0的网站可以让普通用户随意发布UGC内容。安全防控做得不到位的网站页面内容还可能被黑客">
+<meta property="og:type" content="article">
+<meta property="og:title" content="网页文本内容安全风险识别算法">
+<meta property="og:url" content="http://xudongyang.coding.me/web-risk-detect/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="背景介绍随着互联网扁平化的发展，内容信息的分发和获取比以往更加便利，这也大大方便了以色情、赌博、非法政治言论、违禁药品买卖等为代表的违规信息的快速传播。这类信息的传播会造成难以估计的社会影响，甚至有可能影响国家的安定和谐。网站所有者可以随意更改网站页面的内容，发布任意形式的信息。论坛、博客、社交产品等web 2.0的网站可以让普通用户随意发布UGC内容。安全防控做得不到位的网站页面内容还可能被黑客">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://ftp.bmp.ovh/imgs/2020/09/d2c33817128febf8.jpg">
+<meta property="og:image" content="https://ata2-img.oss-cn-zhangjiakou.aliyuncs.com/3cf1d5d0c12fdd89e655c18ab54c6def.jpg">
+<meta property="og:image" content="https://spaces.ac.cn/usr/uploads/2018/04/3933779911.png">
+<meta property="og:image" content="https://ata2-img.oss-cn-zhangjiakou.aliyuncs.com/b34372d1a534fdcc6e85fda788162630.jpg">
+<meta property="article:published_time" content="2020-12-07T06:21:33.000Z">
+<meta property="article:modified_time" content="2020-12-07T06:26:09.780Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="深度学习">
+<meta property="article:tag" content="智能安全">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://ftp.bmp.ovh/imgs/2020/09/d2c33817128febf8.jpg">
+
+<link rel="canonical" href="http://xudongyang.coding.me/web-risk-detect/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>网页文本内容安全风险识别算法 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/web-risk-detect/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          网页文本内容安全风险识别算法
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-12-07 14:21:33 / 修改时间：14:26:09" itemprop="dateCreated datePublished" datetime="2020-12-07T14:21:33+08:00">2020-12-07</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E5%86%85%E5%AE%B9%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">内容安全</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/web-risk-detect/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/web-risk-detect/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="背景介绍"><a href="#背景介绍" class="headerlink" title="背景介绍"></a>背景介绍</h2><p>随着互联网扁平化的发展，内容信息的分发和获取比以往更加便利，这也大大方便了以色情、赌博、非法政治言论、违禁药品买卖等为代表的违规信息的快速传播。这类信息的传播会造成难以估计的社会影响，甚至有可能影响国家的安定和谐。网站所有者可以随意更改网站页面的内容，发布任意形式的信息。论坛、博客、社交产品等web 2.0的网站可以让普通用户随意发布UGC内容。安全防控做得不到位的网站页面内容还可能被黑客随意篡改，甚至安装木马病毒。综上，网站页面内容的生成方式多种多样，内容发布者也是形形色色，其中就会有不少不法分子利用网络传播违规信息以达到非法牟利，甚至控制网民意识形态，颠覆国家政权的目的。</p>
+<p>为了净化云平台以及维护网络环境的安全和稳定，对云上网站中存在的各类违规内容进行治理成为了意义重大又迫在眉睫的问题。本文主要介绍如何通过深度学习算法检测网页中是否包含了特定类型的违规内容。<br><a id="more"></a></p>
+<h2 id="算法框架"><a href="#算法框架" class="headerlink" title="算法框架"></a>算法框架</h2><p>网页内容安全风险识别体系由数据资产构建和算法模型构建两方面组成，整体框架如下图所示。</p>
+<p><img src="https://ftp.bmp.ovh/imgs/2020/09/d2c33817128febf8.jpg" alt="算法框架.jpg"></p>
+<h3 id="数据资产构建"><a href="#数据资产构建" class="headerlink" title="数据资产构建"></a>数据资产构建</h3><h4 id="1-语料库"><a href="#1-语料库" class="headerlink" title="1. 语料库"></a>1. 语料库</h4><p>为了训练有效的算法模型，我们需要较多的训练样本。可以用爬虫来采集网页，构建训练数据集。</p>
+<p>下面以非法政治风险为例，简要介绍如何构建训练语料。通过爬虫采集的方式，从海外主要的反华媒体，如新唐人电视台、大纪元、品葱、膜乎、中文禁文网等采集一批黑样本页面；从国内主要涉政媒体，如中国政府网、人民网、政治家网、求是网等采集一批白样本数据。当然，采集的语料的标签不完全正确，还需要集合其他技术手段做数据清洗。</p>
+<h4 id="2-敏感词规则"><a href="#2-敏感词规则" class="headerlink" title="2. 敏感词规则"></a>2. 敏感词规则</h4><p>敏感词规则主要用来召回风险，是风险防控的第一道漏斗。对风险识别算法的最终效果、服务性能都有重要的影响。另外一方面，敏感词规则在语料集数据清洗、网页敏感文本抽取、特征工程等多个环节都有重要的作用。</p>
+<p>敏感词规则可以从各个渠道收集整理而来，比如针对色情风险，我们可以很容易找到很多AV女优名单。另外，也可以从语料库中挖掘敏感词规则。针对有标签的语料，我们采用RuleLearning算法挖掘敏感词规则。针对无监督语料，我们使用TopMine算法自动生成候选短语，再通过人工review的方式确定最终使用的敏感词集合。</p>
+<h3 id="算法模型构建"><a href="#算法模型构建" class="headerlink" title="算法模型构建"></a>算法模型构建</h3><h4 id="1-文本预处理"><a href="#1-文本预处理" class="headerlink" title="1. 文本预处理"></a>1. 文本预处理</h4><p>文本预处理模块包括HTML代码解析与文本归一化两部分。</p>
+<ul>
+<li>HTML代码解析</li>
+</ul>
+<p>HTML代码解析不仅仅是去除HTML标签保留纯文本，有两个重要的行动是保障算法效果的必要步骤。第一，是要根据CSS样式代码去除掉在页面渲染时无法展示的干扰内容；第二，是<strong>要尽可能保留页面内容的区块、段落、分行结构</strong>，这一步是为了保障敏感词规则匹配时尽可能减少误匹配。举例而言，敏感词规则有很多形如“A&amp;B”这样的规则，那么A和B这两个子串如果分别在不同的区块、段落、甚至在不同行之间的匹配都是我们不希望的。因此，解析HTML代码需要细粒度识别每个HTML元素的语义，比如是块元素还是内联元素等，以及需要考虑是否与前一个元素内容连接等因素。</p>
+<ul>
+<li>文本归一化</li>
+</ul>
+<p>文本归一化模块提供一些通用的变异文本还原功能，主要包括：</p>
+<ol>
+<li>繁体转简体</li>
+<li>全角转半角</li>
+<li>大写转小写</li>
+<li>html实体符号还原：<code>&quot;&amp;lambda;&quot; -&gt; &quot;λ&quot;; &quot;&amp;lt;&quot; -&gt; &quot;&lt;&quot;; &quot;&amp;nbsp;&quot; -&gt; 空格</code></li>
+<li>unicode字符规范化：<code>① -&gt; 1 ; ㊉㊚ -&gt; 十男 ; ㏴  -&gt;  21日</code></li>
+<li>html标签去除:  <code>&lt;div style=&#39;xxx&#39;&gt;hello world&lt;/div&gt;   -&gt;   hello world</code></li>
+<li>emoji表情转汉字：<code>“🇨🇳🇺🇸📦📽️🇩🇪⬅️🏊🐓”-&gt;“中美合拍的西游记”</code></li>
+<li>拆分字合并：<code>三去车仓工力 -&gt; 法轮功</code></li>
+<li>特殊符号过滤</li>
+<li>抽象字还原：<code>艹比 -&gt; 操逼; 六亖 -&gt; 六四; 六罒事件 -&gt; 六四事件</code></li>
+</ol>
+<p>举例如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">输入：😲！㊥.國Zui.無.耳止 的&lt;strong&gt;謊.訁&lt;&#x2F;strong&gt;就要大.白.於天.㊦</span><br><span class="line">输出：震惊 中国最无耻的谎言就要大白于天下</span><br></pre></td></tr></table></figure></p>
+<h4 id="2-特征工程"><a href="#2-特征工程" class="headerlink" title="2. 特征工程"></a>2. 特征工程</h4><ul>
+<li>HTML标签特征</li>
+</ul>
+<p>除了常规的字符embedding（中文汉字，英文wordpiece）和位置embedding特征之外，我们根据网页内容的特点加入了<strong>html标签embedding</strong>。根据云管控业务的管控标准，某些风险如网络招嫖、赌博等违规内容需要有明显的联系方式或者超链接才会判定为违规。另外，网页信息的展现样式跟html标签有很强的关联，因此文本内容对应的html标签路径是一个很有用的特征。我们选择了一些重要的html标签，比如<code>&lt;a&gt;</code>等，作为模型的特征之一。</p>
+<ul>
+<li>文本数据增强</li>
+</ul>
+<p>数据增强是提升深度学习模型鲁棒性的一种重要手段。在少样本学习、正负类别样本分布不平衡、半监督学习等场景，通过数据增强给数据加上杠杆，是快速提升模型效果的一种简单易行的方法。</p>
+<p>典型文本数据增强技术方案包括EDA、回译（Back translation）、基于上下文信息的文本增强、基于语言生成模型的文本增强等。</p>
+<p>EDA是一种简单有效且实现成本低的方法，具体操作包括随机词删除、同义词替换、同义词插入、位置交换等。中文的同义词可以使用哈工大开源的同义词词林，或者使用阿里NLP团队的相关积累。另一种思路是使用word2vec模型生成近义词/相关词，用近义词替换或插入来做数据增强，这种方法可以大大扩充近义词数量，但也有改变原始文本的语义的风险。由于我们的业务场景需要从一大段文本中提取文本片段，因此我还尝试了通过<strong>平移或缩放滑动窗口</strong>的方法来生成数据增强的候选文本，这种方法可以在不改变语义的情况下获取大量的增强文本，也是一种很好用的方法。</p>
+<p>得益于近几年文本翻译领域的显著进展、各种先进翻译模型的开源（包括百度、google 等翻译工具的接口开放），基于回译（back translation）方法的文本数据增强成为了质量高又几乎无技术门槛的通用文本增强技术。回译方法的基本流程很简单，利用翻译模型将语种1的原始文本翻译为语种2的文本表达，基于语种2的表达再翻译为语种3的文本表达，最后再直接从语种3的形式翻译回语种1的文本表达，此文本即是原始文本增强后的文本。当然，很多时候只采用一种中间语种也可以实现很好的增强效果。</p>
+<p>基于上下文信息的文本增强技术在原理上也很直观：首先需要一个训练好的语言模型（LM），对于需要增强的原始文本，随机去掉文中的一个词或字（这取决于语言模型支持字还是词）。接下来，将文本的剩余部分输入语言模型，选择语言模型所预测的 top k 个词去替换原文中被去掉的词，以形成 k 条新的文本。</p>
+<p>文本数据增强还有不少其他方法值得进一步探索，比如文本风格迁移等。该方法之所以有效，首先它无疑是一种有效的正则化方法，无论是回译、EDA、非核心词替换还是基于上下文的文本增强，本质上都是设计者表达了一种模型偏好（归纳偏置），或者对于模型的分布施加了较强的先验分布假设。其中，回译表达的模型偏好是，模型应该对于不同表达形式但同一语义的文本具有不变性。EDA、关键词替换等表达的模型偏好则是，模型应该对于文本的局部噪声不敏感，实现了类似于 dropout 层的功能。任何学习都需要有效的外部信息指导，上面所提的基于上下文信息的文本增强技术的有效性无疑也可以从迁移学习的角度来理解。因此，即使面临少样本场景，基于文本增强的模型也能够在假设空间中有效地收敛，实现较好的泛化误差。</p>
+<h4 id="3-文本Encoder-DGCNN模型"><a href="#3-文本Encoder-DGCNN模型" class="headerlink" title="3. 文本Encoder: DGCNN模型"></a>3. 文本Encoder: DGCNN模型</h4><p>文本编码器采用了膨胀门卷积神经网络（Dilate Gated Convolutional Neural Network），基于膨胀卷积和门卷积的CNN和简单的Attention的模型，由于没有用到RNN和Transformer结构，因此速度相当快。模型结构如下图所示。</p>
+<p><img src="https://ata2-img.oss-cn-zhangjiakou.aliyuncs.com/3cf1d5d0c12fdd89e655c18ab54c6def.jpg" alt="DGCNN.jpg"></p>
+<p>模型中采用的门卷积结构，来自FaceBook的《Convolutional Sequence to Sequence Learning》。假设我们要处理的向量序列是$\boldsymbol{X}=[\boldsymbol{x}_1,\boldsymbol{x}_2,\dots,\boldsymbol{x}_n]$，那么我们可以给普通的一维卷积加个门：<script type="math/tex">\boldsymbol{Y}=\text{Conv1D}_1(\boldsymbol{X}) \otimes \sigma\Big(\text{Conv1D}_2(\boldsymbol{X})\Big)\tag{1}</script><br>这里的两个Conv1D形式一样（比如卷积核数、窗口大小都一样），但权值是不共享的，也就是说参数翻倍了，其中一个用sigmoid函数激活，另外一个不加激活函数，然后将它们逐位相乘。因为sigmoid函数的值域是(0,1)，所以直觉上来看，就是给Conv1D的每个输出都加了一个“阀门”来控制流量。这就是GCNN的结构了，可以将这种结构看成一个激活函数，称为GLU（Gated Linear Unit）。进一步，可以采用残差结构使得信息能够在多通道传输。</p>
+<script type="math/tex; mode=display">\boldsymbol{Y}=\boldsymbol{X} + \text{Conv1D}_1(\boldsymbol{X}) \otimes \sigma\Big(\text{Conv1D}_2(\boldsymbol{X})\Big)\tag{2}</script><p>接下来，为了使得CNN模型能够捕捉更远的的距离，并且又不至于增加模型参数，我们使用了膨胀卷积。普通卷积跟膨胀卷积的对比如下图所示。</p>
+<p><img src="https://spaces.ac.cn/usr/uploads/2018/04/3933779911.png" alt="普通卷积vs膨胀卷积"></p>
+<p>同样是三层的卷积神经网络（第一层是输入层），窗口大小为3。普通卷积在第三层时，每个节点只能捕捉到前后3个输入，而跟其他输入完全不沾边。</p>
+<p>而膨胀卷积在第三层时则能够捕捉到前后7个输入，但参数量和速度都没有变化。这是因为在第二层卷积时，膨胀卷积跳过与中心直接相邻的输入，直接捕捉中心和次相邻的输入（膨胀率为2），也可以看成是一个“窗口大小为5的、但被挖空了两个格的卷积”，所以膨胀卷积也叫空洞卷积（Atrous Convolution）。在第三层卷积时，则连续跳过了三个输入（膨胀率为4），也可以看成一个“窗口大小为9、但被挖空了6个格的卷积”。而如果在相关的输入输出连一条线，就会发现第三层的任意一个节点，跟前后7个原始输入都有联系。</p>
+<p>按照“尽量不重不漏”的原则，膨胀卷积的膨胀率一般是按照1、2、4、8、…这样的几何级数增长。</p>
+<h4 id="4-学习范式：多示例学习"><a href="#4-学习范式：多示例学习" class="headerlink" title="4. 学习范式：多示例学习"></a>4. 学习范式：多示例学习</h4><p>多示例学习(multiple-instance learning)与监督学习、半监督学习和非监督学习有所不同，它是以多示例包(bag)为训练单元的学习问题。在此类学习中，训练集由若干个具有标签的包组成，每个包包含若干没有标签的示例。若一个包中至少有一个正例，则该包被标记为正（positive），若一个包中所有示例都是反例，则包被标记为反（negative）。通过对训练包的学习，希望学习系统尽可能正确地对训练集之外的包的标签进行预测。</p>
+<p>与监督学习相比，多示例学习中的训练示例是没有标签的，这与监督学习中所有训练示例都有标签不同；与非监督学习相比，多示例学习中训练包是有标签的，这与非监督学习的训练样本中没有任何标签也不同。更重要的是，在以往的各种学习框架中，一个样本就是一个示例，即样本和示例是一一对应关系；而在多示例学习中，一个样本（包）包含了多个示例，即样本和示例是一对多的关系。</p>
+<p>对应到网页风险识别场景，我们从每个网页中抽取若干文本片段作为训练数据。每个文本片段对应一个示例，若干个文本片段组成一个包，也就是一条训练样本。风险类型标签与网页相关联，而不与文本片段相关联，对应到多示例学习框架中就是标签与包相关联，而不与示例相关联。</p>
+<p>我们从网页中抽取的若干文本片段并不能保证所有文本片段都包含了特定风险的违规信息，抽取的过程中可能存在噪音。多示例学习框架只要求每个包中至少包含一个正例，则该包就可以标记为正例；因此，我们只需要尽可能保证批量抽取的文本片段中有一个文本片段包含了违规内容，就可以放心地把该包标记为违规。由此可见，多示例学习对数据噪声有很好的鲁棒性，比较贴合网页风险识别业务的需求。</p>
+<p>在预测阶段，使用与训练阶段相同的流程从待检测网页中抽取若干文本片段，每个文本片段作为一个示例，同一网页中抽取出的所有文本片段组成一个包，输入给预测模型，由模型结果来判断是否是某种类型的风险违规。</p>
+<p>我们参考《Attention-based Deep Multiple Instance Learning》论文中的方法来构建训练模型。首先，我们对每个包中的若干个示例，通过上文提到的DGCNN文本编码器转换为一个固定长度的embedding向量；其次，通过attention机制把第一步得到的若干个embedding向量融合为一个最终的embedding向量；最后，在上一步得到的embedding向量之后接一个softmax分类层即可。架构示例图如下。</p>
+<p><img src="https://ata2-img.oss-cn-zhangjiakou.aliyuncs.com/b34372d1a534fdcc6e85fda788162630.jpg" alt="Attention MIL.jpg"></p>
+<p>具体地，假设第 $k$ 个文本片段对应的embedding向量为 $h_k$，则最终得到的包的embedding向量为$z=\sum_{k=1}^K a_k h_k$，其中<script type="math/tex">a_k=\frac{exp\{w_k^T tanh(Vh_k^T)\}}{\sum_{j=1}^K exp\{w_j^T tanh(Vh_j^T)\}}</script></p>
+<p>上式中，$w,V$ 都是待学习的参数。</p>
+<h4 id="5-损失函数：F1-score-动态加权的类别分布自平衡-loss-function"><a href="#5-损失函数：F1-score-动态加权的类别分布自平衡-loss-function" class="headerlink" title="5. 损失函数：F1 score 动态加权的类别分布自平衡 loss function"></a>5. 损失函数：F1 score 动态加权的类别分布自平衡 loss function</h4><p>现实世界中的监督学习问题，大多是类别分布不平衡的。虽然已存在多种处理类别分布不平衡的方法，常用的方法包括re-sampling和re-weighting两大类。Re-sampling类方法存在浪费训练数据或有过拟合的风险。Re-weighting大多对数据中的噪音非常敏感。</p>
+<p>我经常使用的处理类别分布不平衡问题的损失函数是F1 score动态加权损失函数，该损失函数经测试能较好地处理类别分布不平衡问题，比如在正负样本比例为1:200的情况下也能有较好的表现，并且有一个很好的特性就是对数据噪声不敏感。使用该损失函数还可以根据业务需求动态调整对准确率-召回率的偏好。</p>
+<p>简单地说，F1 score动态加权损失函数保持正样本的权重为 1，为负样本动态地计算权重：</p>
+<script type="math/tex; mode=display">w_\beta=\frac{TP(\theta)}{\beta^2P+N-TN(\theta)}</script><p>其中，$\beta$ 为准确率-召回率的偏好调节因子，$P$、$N$ 分别为当前mini batch中的正样本和负样本数量，$TP(\theta)$、$TN(\theta)$ 分别为当前mini batch中用当前模型参数预测为True-Positive和True-Nagative的样本数量。</p>
+<p>关于该损失函数，更详细的信息可参考《Adaptive Scaling for Sparse Detection in Information Extraction》。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>网页风险防控因数据是以源码的形式作为输入，区别于传统的文本安全场景的输入，具有一定的独特性，后续可以进一步挖掘该类型文本的特征。另外，长文本分类也属于一类比较难的NLP问题，值得进一步研究。欢迎有兴趣的同学交流想法，共同探讨。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+  <div class="followme">
+    <p>欢迎关注我的其它发布渠道</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" rel="tag"># 深度学习</a>
+              <a href="/tags/%E6%99%BA%E8%83%BD%E5%AE%89%E5%85%A8/" rel="tag"># 智能安全</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/rule-learning/" rel="prev" title="关键词规则挖掘在商品合规风险识别中的应用">
+      <i class="fa fa-chevron-left"></i> 关键词规则挖掘在商品合规风险识别中的应用
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%83%8C%E6%99%AF%E4%BB%8B%E7%BB%8D"><span class="nav-number">1.</span> <span class="nav-text">背景介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AE%97%E6%B3%95%E6%A1%86%E6%9E%B6"><span class="nav-number">2.</span> <span class="nav-text">算法框架</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E8%B5%84%E4%BA%A7%E6%9E%84%E5%BB%BA"><span class="nav-number">2.1.</span> <span class="nav-text">数据资产构建</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E8%AF%AD%E6%96%99%E5%BA%93"><span class="nav-number">2.1.1.</span> <span class="nav-text">1. 语料库</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E6%95%8F%E6%84%9F%E8%AF%8D%E8%A7%84%E5%88%99"><span class="nav-number">2.1.2.</span> <span class="nav-text">2. 敏感词规则</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%97%E6%B3%95%E6%A8%A1%E5%9E%8B%E6%9E%84%E5%BB%BA"><span class="nav-number">2.2.</span> <span class="nav-text">算法模型构建</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E6%96%87%E6%9C%AC%E9%A2%84%E5%A4%84%E7%90%86"><span class="nav-number">2.2.1.</span> <span class="nav-text">1. 文本预处理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E7%89%B9%E5%BE%81%E5%B7%A5%E7%A8%8B"><span class="nav-number">2.2.2.</span> <span class="nav-text">2. 特征工程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E6%96%87%E6%9C%ACEncoder-DGCNN%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.2.3.</span> <span class="nav-text">3. 文本Encoder: DGCNN模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-%E5%AD%A6%E4%B9%A0%E8%8C%83%E5%BC%8F%EF%BC%9A%E5%A4%9A%E7%A4%BA%E4%BE%8B%E5%AD%A6%E4%B9%A0"><span class="nav-number">2.2.4.</span> <span class="nav-text">4. 学习范式：多示例学习</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0%EF%BC%9AF1-score-%E5%8A%A8%E6%80%81%E5%8A%A0%E6%9D%83%E7%9A%84%E7%B1%BB%E5%88%AB%E5%88%86%E5%B8%83%E8%87%AA%E5%B9%B3%E8%A1%A1-loss-function"><span class="nav-number">2.2.5.</span> <span class="nav-text">5. 损失函数：F1 score 动态加权的类别分布自平衡 loss function</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">67</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.linkedin.com/in/%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169/" title="LinkedIn → https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169&#x2F;" rel="noopener" target="_blank"><i class="fab fa-linkedin-square fa-fw"></i>LinkedIn</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fab fa-book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="medapps fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="rss fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="rss-square fa-fw"></i>博客园</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">283k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:17</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

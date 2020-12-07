@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>http://xudongyang.coding.me/rule-learning/</loc>
-    <lastmod>2020-12-04</lastmod>
+    <loc>http://xudongyang.coding.me/query-rewrite/</loc>
+    <lastmod>2020-12-07</lastmod>
   </url>
   <url>
     <loc>http://xudongyang.coding.me/similarity-search/</loc>
-    <lastmod>2020-12-04</lastmod>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/rule-learning/</loc>
+    <lastmod>2020-12-07</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/web-risk-detect/</loc>
+    <lastmod>2020-12-07</lastmod>
   </url>
   <url>
     <loc>http://xudongyang.coding.me/xdeepfm/</loc>
@@ -25,11 +33,11 @@
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
-    <loc>http://xudongyang.coding.me/trie/</loc>
+    <loc>http://xudongyang.coding.me/tree-ensemble-importance/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
-    <loc>http://xudongyang.coding.me/tree-ensemble-importance/</loc>
+    <loc>http://xudongyang.coding.me/trie/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
@@ -97,10 +105,6 @@
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
-    <loc>http://xudongyang.coding.me/query-rewrite/</loc>
-    <lastmod>2020-12-04</lastmod>
-  </url>
-  <url>
     <loc>http://xudongyang.coding.me/machine-learning/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
@@ -117,11 +121,11 @@
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
-    <loc>http://xudongyang.coding.me/jvm-class-loader/</loc>
+    <loc>http://xudongyang.coding.me/item-pop-score/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
-    <loc>http://xudongyang.coding.me/item-pop-score/</loc>
+    <loc>http://xudongyang.coding.me/jvm-class-loader/</loc>
     <lastmod>2020-12-04</lastmod>
   </url>
   <url>
