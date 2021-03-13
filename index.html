@@ -169,6 +169,131 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/contextual-bandit/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/contextual-bandit/" class="post-title-link" itemprop="url">在生产环境的推荐系统中部署Contextual bandit (LinUCB)算法的经验和陷阱</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2021-03-13 16:04:10 / 修改时间：16:05:51" itemprop="dateCreated datePublished" datetime="2021-03-13T16:04:10+08:00">2021-03-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E7%AE%97%E6%B3%95%E6%A8%A1%E5%9E%8B/" itemprop="url" rel="index"><span itemprop="name">算法模型</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/contextual-bandit/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/contextual-bandit/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="一、推荐冷启动问题"><a href="#一、推荐冷启动问题" class="headerlink" title="一、推荐冷启动问题"></a>一、推荐冷启动问题</h2><p>当新用户或新物品进入内容平台时，就会出现冷启动（Cold Start）问题。比如，内容平台新发布的短视频、电商平台新上架的商品、媒体平台新发布的新闻等等，这些新的内容之前从未获得过曝光，从未有用户对它们表示过感兴趣或不感兴趣。推荐系统该如何决定这些内容是否需要被推荐，以及推荐给哪些合适的用户？这就是推荐冷启动问题。</p>
+<p>相对于冷启动的物品（泛指商品、新闻、作品等需要被推荐的内容），非冷启动物品因为以及获得了大量的曝光，推荐系统收集了用户对它们的一些交互行为，这些行为显式或隐式反馈了用户对这些物品的兴趣。基于这些行为日志，推荐系统可以用比较成熟的推荐算法来对这些物品进行个性化的推荐，让合适的物品被呈现给合适的用户。</p>
+<p>为什么需要冷启动方案，原因如下：</p>
+<ul>
+<li>目前的召回、粗排、精排算法对新物品、新用户不友好</li>
+<li>新物品很大程度上，会被模型”低估”</li>
+<li>冷启动问题不可逃避<ul>
+<li>处理不好会影响内容创造者的积极性，进而影响平台生态的健康发展</li>
+</ul>
+</li>
+</ul>
+<p>冷启动物品由于缺乏或暂未获得足够丰富的用户交互行为日志，给推荐算法带来了不小的挑战。目前冷启动推荐大致有以下几种思路：</p>
+<ul>
+<li>基于物品的属性数据（side information），比如利用商品的类目、品牌等信息；文章的作者、类别、关键词、摘要等。</li>
+<li>基于其他领域的知识，比如领域知识图谱等</li>
+<li>使用元学习（meta learning）的方法</li>
+<li>基于试错的Contextual Bandit的方法</li>
+</ul>
+<p>本文主要关注基于Contextual Bandit的方法，具体地，我们会介绍LinUcb算法的原理、生产环境部署的基础设施架构、算法框架、工程实现时的注意事项、特征设计的陷阱、算法超参数的选择等内容。<br></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/contextual-bandit/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/web-risk-detect/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1209,123 +1334,6 @@ x @>f(x,\theta)>> z(\theta) @>g(z)>> y
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/distributed-tensorflow/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/my_carton.png">
-      <meta itemprop="name" content="yangxudong">
-      <meta itemprop="description" content="勤劳的小毛驴">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="小毛驴">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/distributed-tensorflow/" class="post-title-link" itemprop="url">一文说清楚Tensorflow分布式训练必备知识</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2019-03-22 11:18:29" itemprop="dateCreated datePublished" datetime="2019-03-22T11:18:29+08:00">2019-03-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-12-04 16:17:21" itemprop="dateModified" datetime="2020-12-04T16:17:21+08:00">2020-12-04</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">深度学习</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/distributed-tensorflow/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/distributed-tensorflow/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>5.8k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>5 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>Methods that scale with computation are the future of AI.<br>—Rich Sutton, 强化学习之父</p>
-</blockquote>
-<p>大数据时代的互联网应用产生了大量的数据，这些数据就好比是石油，里面蕴含了大量知识等待被挖掘。深度学习就是挖掘数据中隐藏知识的利器，在许多领域都取得了非常成功的应用。然而，大量的数据使得模型的训练变得复杂，使用多台设备分布式训练成了必备的选择。</p>
-<p>Tensorflow是目前比较流行的深度学习框架，本文着重介绍tensorflow框架是如何支持分布式训练的。<br></p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/distributed-tensorflow/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1397,7 +1405,7 @@ x @>f(x,\theta)>> z(\theta) @>g(z)>> y
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-count">49</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -1479,7 +1487,7 @@ x @>f(x,\theta)>> z(\theta) @>g(z)>> y
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2020</span>
+  <span itemprop="copyrightYear">2021</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
@@ -1488,12 +1496,12 @@ x @>f(x,\theta)>> z(\theta) @>g(z)>> y
     <span class="post-meta-item-icon">
       <i class="fa fa-chart-area"></i>
     </span>
-    <span title="站点总字数">283k</span>
+    <span title="站点总字数">289k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="站点阅读时长">4:17</span>
+    <span title="站点阅读时长">4:23</span>
 </div>
 
         

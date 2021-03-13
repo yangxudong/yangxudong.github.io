@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="一、推荐冷启动问题当新用户或新物品进入内容平台时，就会出现冷启动（Cold Start）问题。比如，内容平台新发布的短视频、电商平台新上架的商品、媒体平台新发布的新闻等等，这些新的内容之前从未获得过曝光，从未有用户对它们表示过感兴趣或不感兴趣。推荐系统该如何决定这些内容是否需要被推荐，以及推荐给哪些合适的用户？这就是推荐冷启动问题。 相对于冷启动的物品（泛指商品、新闻、作品等需要被推荐的内容），非">
+<meta property="og:type" content="article">
+<meta property="og:title" content="在生产环境的推荐系统中部署Contextual bandit (LinUCB)算法的经验和陷阱">
+<meta property="og:url" content="http://xudongyang.coding.me/contextual-bandit/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="一、推荐冷启动问题当新用户或新物品进入内容平台时，就会出现冷启动（Cold Start）问题。比如，内容平台新发布的短视频、电商平台新上架的商品、媒体平台新发布的新闻等等，这些新的内容之前从未获得过曝光，从未有用户对它们表示过感兴趣或不感兴趣。推荐系统该如何决定这些内容是否需要被推荐，以及推荐给哪些合适的用户？这就是推荐冷启动问题。 相对于冷启动的物品（泛指商品、新闻、作品等需要被推荐的内容），非">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2021/png/24824/1610000232864-cde36b5c-85d4-4ee7-8907-c9592c51debf.png">
+<meta property="og:image" content="https://kfoofw.github.io/assets/img/post_11/paper_disjoint_algo.png">
+<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2021/png/24824/1611023232742-d10be675-2e2f-483f-8e6e-d24090b21ead.png">
+<meta property="og:image" content="https://kfoofw.github.io/assets/img/post_12/paper_hybrid_algo.png">
+<meta property="og:image" content="https://kfoofw.github.io/assets/img/post_12/compare_disjoint_hybrid.png">
+<meta property="article:published_time" content="2021-03-13T08:04:10.000Z">
+<meta property="article:modified_time" content="2021-03-13T08:05:51.714Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="推荐系统">
+<meta property="article:tag" content="LinUCB">
+<meta property="article:tag" content="在线学习">
+<meta property="article:tag" content="E&amp;E">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2021/png/24824/1610000232864-cde36b5c-85d4-4ee7-8907-c9592c51debf.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/contextual-bandit/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>在生产环境的推荐系统中部署Contextual bandit (LinUCB)算法的经验和陷阱 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-essays">
+
+    <a href="/categories/essays/" rel="section"><i class="fa fa-leaf fa-fw"></i>软技能</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/contextual-bandit/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          在生产环境的推荐系统中部署Contextual bandit (LinUCB)算法的经验和陷阱
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2021-03-13 16:04:10 / 修改时间：16:05:51" itemprop="dateCreated datePublished" datetime="2021-03-13T16:04:10+08:00">2021-03-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E7%AE%97%E6%B3%95%E6%A8%A1%E5%9E%8B/" itemprop="url" rel="index"><span itemprop="name">算法模型</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/contextual-bandit/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/contextual-bandit/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="一、推荐冷启动问题"><a href="#一、推荐冷启动问题" class="headerlink" title="一、推荐冷启动问题"></a>一、推荐冷启动问题</h2><p>当新用户或新物品进入内容平台时，就会出现冷启动（Cold Start）问题。比如，内容平台新发布的短视频、电商平台新上架的商品、媒体平台新发布的新闻等等，这些新的内容之前从未获得过曝光，从未有用户对它们表示过感兴趣或不感兴趣。推荐系统该如何决定这些内容是否需要被推荐，以及推荐给哪些合适的用户？这就是推荐冷启动问题。</p>
+<p>相对于冷启动的物品（泛指商品、新闻、作品等需要被推荐的内容），非冷启动物品因为以及获得了大量的曝光，推荐系统收集了用户对它们的一些交互行为，这些行为显式或隐式反馈了用户对这些物品的兴趣。基于这些行为日志，推荐系统可以用比较成熟的推荐算法来对这些物品进行个性化的推荐，让合适的物品被呈现给合适的用户。</p>
+<p>为什么需要冷启动方案，原因如下：</p>
+<ul>
+<li>目前的召回、粗排、精排算法对新物品、新用户不友好</li>
+<li>新物品很大程度上，会被模型”低估”</li>
+<li>冷启动问题不可逃避<ul>
+<li>处理不好会影响内容创造者的积极性，进而影响平台生态的健康发展</li>
+</ul>
+</li>
+</ul>
+<p>冷启动物品由于缺乏或暂未获得足够丰富的用户交互行为日志，给推荐算法带来了不小的挑战。目前冷启动推荐大致有以下几种思路：</p>
+<ul>
+<li>基于物品的属性数据（side information），比如利用商品的类目、品牌等信息；文章的作者、类别、关键词、摘要等。</li>
+<li>基于其他领域的知识，比如领域知识图谱等</li>
+<li>使用元学习（meta learning）的方法</li>
+<li>基于试错的Contextual Bandit的方法</li>
+</ul>
+<p>本文主要关注基于Contextual Bandit的方法，具体地，我们会介绍LinUcb算法的原理、生产环境部署的基础设施架构、算法框架、工程实现时的注意事项、特征设计的陷阱、算法超参数的选择等内容。<br><a id="more"></a></p>
+<h2 id="二、LinUCB算法"><a href="#二、LinUCB算法" class="headerlink" title="二、LinUCB算法"></a>二、LinUCB算法</h2><p>先不考虑用户的情况，每一个新的物品被推荐出去后，所能获得的收益是不一样的。这里的收益根据推荐系统的目标来定义，比如不同的行为获得不同的收益，拿电商平台来说，点击行为获得的收益假设是0.5，加购物车的行为获得的收益可以定义为0.8，下单购买的行为收益可以定义为1.0。那么，推荐系统在每一次用户到达时该如何决定推荐哪个物品才能获得长期累积的最大收益呢？这其实就是一个MAB（Multi-Arm Bandit）问题。</p>
+<p>假设系统记录了每个物品被推荐的次数 $n_i$ 和获得的收益，我们就可以计算出每个物品被推荐后所能获得的收益均值 $\hat\mu_i$，那之后是不是就可以一直选择收益均值大的物品推荐，而不再推荐收益均值小的物品呢？其实是不可以的，因为根据大数定律，只有在实验次数足够多时，统计得到的均值才接近于随机变量的真实均值。假设有一个物品只被推荐了一两次，这个时候计算出的均值是不准确的，我们不能据此就判断下次推荐这个物品时还能获得跟当前计算出的均值相当的收益。那该怎么办呢？假设物品的收益服从正态分布，那么除了均值，我们还可以计算每个物品收益的方差或标准差。方差越小，表示均值越置信；反之，均值越不置信。这样我们就计算出了每个物品的收益均值，以及置信区间。UCB（Upper Confidence Bound）算法就是根据估算的置信区间上界来选择下次需要被推荐的物品。具体计算公式如下：</p>
+<script type="math/tex; mode=display">\hat\mu_i + \sqrt{\frac{2ln(n)}{n_i}}</script><p>其中，$n$为总的推荐次数， $n_i$为物品 $i$ 被推荐的次数。可以看出，某物品被推荐的次数越多，上式第二项就越小，也就是其均值更有置信度，这个时候算法偏向于利用（exploit）已经获得的知识（收益均值）；相反，如果某物品被推荐的次数越少，上式第二项就越大，从而更有机会被推荐，这个时候算法偏向于探索（explore）新的曝光量较少的物品，以期望能够发现未来收益率更高的优质物品。在推荐系统中，Exploitation-Exploration平衡是一个重要的机制。</p>
+<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2021/png/24824/1610000232864-cde36b5c-85d4-4ee7-8907-c9592c51debf.png" alt></p>
+<p>可以看出，上述推荐物品的过程没有充分利用推荐场景的上下文信息，为所有用户选择展现物品的策略都是相同的，忽略了用户作为一个个活生生的个体本身的兴趣点、偏好、购买力等因素都是不同的，因而，同一个物品在不同的用户、不同的情景下接受程度是不同的。故在实际的推荐系统中，我们还会把用户和场景的特征考虑进去，把这样的算法称之为Contextual Bandit算法。</p>
+<p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1003.0146.pdf">LinUCB算法</a>就是一个经典的Contextual Bandit算法，它假设物品的收益由一个线性模型决定，模型的特征编码了用户信息、上下文场景信息、用户-物品交叉的信息等，其原理类似于上述UCB算法。关于LinUCB算法原理的详细内容请参考这篇很火爆的文章《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/35753281">Contextual Bandit算法在推荐系统中的实现及应用</a>》，这里不再赘述。</p>
+<p>LinUCB算法需要实时收集被推荐物品的收益，以便据此决定下一步的推荐策略，因此，LinUCB算法是一个在线学习（online learning）模型，但它与传统的在线学习模型（如ftrl、ODL等）又有不同的地方，主要有两点区别：</p>
+<ol>
+<li>每个arm（物品）学习一个独立的模型（context只需要包含user-side和user-arm interaction的特征，不需要包含arm-side特征）；而传统在线学习为整个业务场景学习一个统一的模型</li>
+<li>传统的在线学习采用贪心策略，尽最大可能利用已学到的知识，没有exploration机制（贪心策略通常情况下都不是最优的）；LinUCB则有较完善的E&amp;E机制，关注长期整体收益</li>
+</ol>
+<p>在生产环境部署在线学习模型并不是一件容易的事情，涉及到的基础设施和工程链路都比较复杂，下面就带大家看一种可行的方案。</p>
+<h2 id="三、算法框架"><a href="#三、算法框架" class="headerlink" title="三、算法框架"></a>三、算法框架</h2><p>根据是否在Arm之间共享部分参数，LinUCB可以分为不共享参数的Disjoint版本和共享参数的Hybrid版本。下面我们以Disjoint版本为例，介绍一下算法框架和工程实现相关的内容。</p>
+<p><img src="https://kfoofw.github.io/assets/img/post_11/paper_disjoint_algo.png" alt="disjoint linucb"></p>
+<p>Disjoint版的LinUCB本身很简单，算法伪代码如上图，其中第0行到第11行需要在推荐服务内部实现，这部分包括了模型参数同步、模型预测、Exploitation-Exploration机制的实现、实时特征的记录和存储等；第2行、第11行到第13行需要在一个实时计算平台内部实现，比如可以基于flink或storm来实现。实时计算平台与推荐服务之间需要有分布式存储系统来同步模型参数和实时样本特征，可选的分布式存储系统包括Hologres、Redis等，推荐使用Hologres来实现，因为其存储的每一条记录可以分为多个字段结构化存储，类似于数据库系统。整体框架图如下：</p>
+<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2021/png/24824/1611023232742-d10be675-2e2f-483f-8e6e-d24090b21ead.png" alt="算法框架"></p>
+<p>因为用户看到推荐物品的列表后需要间隔一段时间才能产生交互行为，所以模型训练过程中针对曝光样本需要在内存中存储一段时间，等待产生收益的行为日志到达。Flink/Blink系统比较容易实现这个逻辑，可以基于KeyedProcessFunction、OnTimer接口与Flink State配合来实现。这里需要特别设计一下代码逻辑，保证每个曝光样本都能等待足够长的时间，同时又能比较集中地输出更新后的模型参数。</p>
+<p><img src="https://kfoofw.github.io/assets/img/post_12/paper_hybrid_algo.png" alt="hybrid linucb"></p>
+<p>Hybrid版的LinUCB算法相对比较复杂，伪代码如上图。相对于disjoint版本的算法，hybrid版的算法不仅计算公式更加复杂，而且因为多了一组全局的共享参数，给工程实现带来了不小的挑战。因为Flink的State是不能夸worker共享的，所以全局共享参数需要使用外部存储，在分布式环境下全局共享参数会面临可能的读写冲突问题，要正确实现并不容易。</p>
+<h2 id="四、特征工程"><a href="#四、特征工程" class="headerlink" title="四、特征工程"></a>四、特征工程</h2><h3 id="1-谨防哑变量陷阱"><a href="#1-谨防哑变量陷阱" class="headerlink" title="1. 谨防哑变量陷阱"></a>1. 谨防哑变量陷阱</h3><blockquote>
+<p>“A trap is only a trap if you don’t know about it.”</p>
+</blockquote>
+<p>深度学习大大简化了特征工程需要处理的内容，然而LinUCB算法是一个线性模型，因而要想获得比较好的推荐效果，就需要精心设计特征，仔细设计的特征变换可以让线性模型达成相当于在原始特征上训练非线性模型的效果。</p>
+<p>在深度学习时代，对于类别特征，大家习惯使用one-hot编码做特征变换，然而我需要特别提醒大家注意的是，在一个线性模型中使用one-hot编码可能会掉入“<strong>哑变量陷阱（Dummy variable trap）</strong>”中。比如对于用户的性别这个变量，one-hot编码通常会创建两个特征：is_male、is_female，在线性模型中使用这样的两个特征就会面临“多重共线性（multicollinear）”问题，也就是两个或多个特征之间是高度相关的，其中一个变量的值能够由其他变量的值预测出来。假设模型仅使用性别这一个特征，那么有如下等式：</p>
+<script type="math/tex; mode=display">\begin{equation} y = b_0 + b_1 * is\_male + b_2 * is\_female \end{equation}</script><p>由于is_male、is_female不能同时为1，它们之间有如下关系：</p>
+<script type="math/tex; mode=display">is\_male + is\_female = 1</script><p>也就是 $is_male = 1 - is_female$，代入公式(1)，得：</p>
+<script type="math/tex; mode=display">\begin{equation} y = (b_0 + b_1) +（b_2 - b_1) * is\_female \end{equation}</script><p>由此可见，其实模型并不需要两个互相依赖的特征变量。</p>
+<p>哑变量陷阱会导致特征维数变多，影响模型求解效率和参数同步的代价。更严重的是，哑变量陷阱会让模型求解过程中面临非满秩矩阵求逆的难题，对回归参数估计带来严重影响。<strong>随着多重共线性程度的提高，参数方差会急剧上升到很大的水平，理论上使最小二乘估计的有效性、可靠性和价值都收到影响，实践中参数估计的稳定性和可靠程度下降</strong>。</p>
+<h3 id="2-特征设计需要考虑模型的归纳偏置"><a href="#2-特征设计需要考虑模型的归纳偏置" class="headerlink" title="2. 特征设计需要考虑模型的归纳偏置"></a>2. 特征设计需要考虑模型的归纳偏置</h3><p>假设一个二值特征的取值只有0和1两种，如出生地是否为中国，那么有两种设计特征的思路：第一种是出生地在中国的人特征值为1，即is_born_in_china；第二种是出生地不在中国的人特征值为1，即is_not_born_in_china。如果训练集是固定的，那么最终模型的效果可能是一样的，只是学到的特征权重刚刚相反而已。然而，在冷启动物品的推荐场景，哪种设计更好一些呢？推荐结果本身就在改变系统未来能收集到的数据的分布，是一个动态决策的过程，这跟那一个固定的数据集训练模型是有本质区别的。</p>
+<p>如果你仔细看disjoint版本的linucb算法，你就会发现算法对一个全新的物品预测分数：</p>
+<script type="math/tex; mode=display">p_{disjoint} = \alpha \sqrt{x^Tx}</script><p>其中，$\alpha$ 是超参数，决定模型是偏向于探索还是偏向于利用。全新物品的预测分数就等于其特征向量的长度（2范数）。</p>
+<p>同样，hybrid版本的linucb算法对一个全新的物品的预测分数为：</p>
+<script type="math/tex; mode=display">p_{hybrid} = \alpha \sqrt{z^Tz + x^Tx}</script><p>可见全新物品的预测值只跟特征向量的内积有关，内积越大，预测值越大。</p>
+<p><strong>特征设计如果能够使得特征向量的长度越大，越能够代表该物品容易被用户接受，更符合业务sense，这样的设计就是一个好的设计，反之，就是一个糟糕的设计</strong>。毕竟，对于一个全新的物品，其特征向量长度越大越容易被LinUCB算法选择为推荐标的物。比如，一个相亲平台我们应该设计满足用户征友条件的特征，如年龄是否匹配‘is_age_satisfied’，而不要设计相反含义的特征‘is_age_not_satisfied’，这样我们在推荐一个全新的用户时，推荐逻辑比较符合预期；相反的话就可能给用户带来困扰。</p>
+<h3 id="3-特征变换引入非线性性的常用方法"><a href="#3-特征变换引入非线性性的常用方法" class="headerlink" title="3. 特征变换引入非线性性的常用方法"></a>3. 特征变换引入非线性性的常用方法</h3><p>由于线性模型的建模能力较弱，因此我们需要考虑引入原始特征的非线性变换，常用的非线性变换方法包括：</p>
+<ul>
+<li>人工交叉特征(包括交叉统计特征)</li>
+<li>GBDT算法建模，并提取每个决策树的叶子节点（对应决策路径上的特征交叉）</li>
+<li>DNN（如双塔模型、GNN等）抽取的用户embedding</li>
+<li>FM模型提取到的交叉特征</li>
+<li>等等</li>
+</ul>
+<p>当前，后面几钟基于模型的方法一般都是基于非冷启动物品的行为样本训练出来的，训练好的模型用来对冷启动物品提取特征。</p>
+<h3 id="4-可以考虑加入一维bias特征"><a href="#4-可以考虑加入一维bias特征" class="headerlink" title="4. 可以考虑加入一维bias特征"></a>4. 可以考虑加入一维bias特征</h3><p>由于LinUCB算法把每个候选物品都当做是MAB模型的一个arm，为每一个物品训练一个单独的模型，因此我们构建特征时主要关注用户侧特征、用户-物品交叉特征；一般情况下不需要物品侧的特征，因为这些特征对于对应的模型来说在每个样本中的值都是一样的。然而，我个人认为可以加一维bias特征，用来表示对物品的先验偏好。</p>
+<p>由于，我们知道模型对全新的物品的预测跟特征向量的模（长度）正相关，因此，如果能够根据物品的内容属性特征来训练一个人气分模型，用模型预测的人气分作为arm对应模型的bias特征，则可以在初始状态选择人气分较高的物品优先展现，这样做可以让系统不至于从“冰点”开始探索。</p>
+<h2 id="五、超参数选择"><a href="#五、超参数选择" class="headerlink" title="五、超参数选择"></a>五、超参数选择</h2><ul>
+<li>特征的维数</li>
+</ul>
+<p>尽量设计强特征，维数在保证算法效果的前提下不要太大，否则会给模型参数同步、大量候选物品的模型同时inference的过程带来较大的性能开销。</p>
+<ul>
+<li>Disjoint vs Hybrid</li>
+</ul>
+<p>在新物品集合变化频繁的场景推荐使用Hybrid模型，在新物品集合相当较稳定的时候推荐使用Disjoint模型。</p>
+<p>下面是一个模拟测试的结果，在模拟训练的初期，共享参数的hybrid算法相比不共享参数的disjoint算法获得了更高的收益，然而随着实验的持续，disjoint算法最终能够获得更高的收益目标。这也就提示我们，如果我们面临的业务场景有源源不断的新物品加入，并且加入的频率比较高，那选择hybrid算法可能更加合适一些，毕竟每个新物品能获得的曝光机会少了，disjoint算法可能不能获得足够数量的样本使其收敛到较好的状态；而hybrid算法由于能够捕捉相似物品的一些共有特性，收敛速度更快。</p>
+<p><img src="https://kfoofw.github.io/assets/img/post_12/compare_disjoint_hybrid.png" alt></p>
+<ul>
+<li>alpha参数</li>
+</ul>
+<p>alpha参数用来平衡算法探索与利用，alpha越大，探索程度越大，反之，利用程度越大。建议当arm的集合越大时，alpha需要更小一些。</p>
+<h2 id="六、参考资料"><a href="#六、参考资料" class="headerlink" title="六、参考资料"></a>六、参考资料</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/35753281">Contextual Bandit算法在推荐系统中的实现及应用</a></li>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1003.0146.pdf">A Contextual-Bandit Approach to<br>Personalized News Article Recommendation</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/355882527">在生产环境的推荐系统中部署Contextual Bandit算法</a></li>
+<li><a target="_blank" rel="noopener" href="https://kfoofw.github.io/contextual-bandits-linear-ucb-disjoint/">Contextual Bandits Analysis of LinUCB Disjoint Algorithm with Dataset</a></li>
+<li><a target="_blank" rel="noopener" href="https://kfoofw.github.io/contextual-bandits-linear-ucb-hybrid/">Contextual Bandits Analysis of LinUCB Hybrid Algorithm with MovieLens Dataset</a></li>
+<li><a target="_blank" rel="noopener" href="https://folk.idi.ntnu.no/anderpe/publications/MIKE-13-HTN-AKP.pdf">Using Multi-armed Bandit to Solve Cold-start Problems in Recommender Systems at Telco</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.aaai.org/ocs/index.php/FLAIRS/FLAIRS15/paper/viewFile/10385/10364">A Multiple-Play Bandit Algorithm Applied to Recommender Systems</a></li>
+<li>Adapting multi-armed bandits polices to contextual bandits scenarios</li>
+<li><a target="_blank" rel="noopener" href="https://medium.com/datadriveninvestor/dummy-variable-trap-c6d4a387f10a">What is a Dummy variable?</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.jigsawacademy.com/understanding-dummy-variable-traps-regression/">Understanding Dummy Variable Traps in Regression</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" rel="tag"># 推荐系统</a>
+              <a href="/tags/LinUCB/" rel="tag"># LinUCB</a>
+              <a href="/tags/%E5%9C%A8%E7%BA%BF%E5%AD%A6%E4%B9%A0/" rel="tag"># 在线学习</a>
+              <a href="/tags/E-E/" rel="tag"># E&E</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/web-risk-detect/" rel="prev" title="网页文本内容安全风险识别算法">
+      <i class="fa fa-chevron-left"></i> 网页文本内容安全风险识别算法
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E6%8E%A8%E8%8D%90%E5%86%B7%E5%90%AF%E5%8A%A8%E9%97%AE%E9%A2%98"><span class="nav-number">1.</span> <span class="nav-text">一、推荐冷启动问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81LinUCB%E7%AE%97%E6%B3%95"><span class="nav-number">2.</span> <span class="nav-text">二、LinUCB算法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E3%80%81%E7%AE%97%E6%B3%95%E6%A1%86%E6%9E%B6"><span class="nav-number">3.</span> <span class="nav-text">三、算法框架</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%9B%E3%80%81%E7%89%B9%E5%BE%81%E5%B7%A5%E7%A8%8B"><span class="nav-number">4.</span> <span class="nav-text">四、特征工程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E8%B0%A8%E9%98%B2%E5%93%91%E5%8F%98%E9%87%8F%E9%99%B7%E9%98%B1"><span class="nav-number">4.1.</span> <span class="nav-text">1. 谨防哑变量陷阱</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E7%89%B9%E5%BE%81%E8%AE%BE%E8%AE%A1%E9%9C%80%E8%A6%81%E8%80%83%E8%99%91%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%BD%92%E7%BA%B3%E5%81%8F%E7%BD%AE"><span class="nav-number">4.2.</span> <span class="nav-text">2. 特征设计需要考虑模型的归纳偏置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E7%89%B9%E5%BE%81%E5%8F%98%E6%8D%A2%E5%BC%95%E5%85%A5%E9%9D%9E%E7%BA%BF%E6%80%A7%E6%80%A7%E7%9A%84%E5%B8%B8%E7%94%A8%E6%96%B9%E6%B3%95"><span class="nav-number">4.3.</span> <span class="nav-text">3. 特征变换引入非线性性的常用方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E5%8F%AF%E4%BB%A5%E8%80%83%E8%99%91%E5%8A%A0%E5%85%A5%E4%B8%80%E7%BB%B4bias%E7%89%B9%E5%BE%81"><span class="nav-number">4.4.</span> <span class="nav-text">4. 可以考虑加入一维bias特征</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94%E3%80%81%E8%B6%85%E5%8F%82%E6%95%B0%E9%80%89%E6%8B%A9"><span class="nav-number">5.</span> <span class="nav-text">五、超参数选择</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AD%E3%80%81%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">6.</span> <span class="nav-text">六、参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">49</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">67</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.linkedin.com/in/%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169/" title="LinkedIn → https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169&#x2F;" rel="noopener" target="_blank"><i class="fab fa-linkedin fa-fw"></i>LinkedIn</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fa fa-book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fa fa-blog fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab fa-blogger fa-fw"></i>博客园</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://yang_xu_dong.gitee.io/" title="https:&#x2F;&#x2F;yang_xu_dong.gitee.io" rel="noopener" target="_blank">国内镜像</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">289k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:23</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
