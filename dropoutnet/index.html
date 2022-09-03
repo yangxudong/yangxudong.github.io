@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="为什么需要冷启动通常推荐系统通过协同过滤、矩阵分解或是深度学习模型来生成推荐候选集，这些召回算法一般都依赖于用户-物品行为矩阵。在真实的推荐系统中，会有源源不断的新用户、新物品加入，这些新加入系统的用户和物品由于缺乏足够丰富的历史交互行为数据，常常不能获得准确的推荐内容，或被准确推荐给合适的用户。这就是所谓的推荐冷启动问题。冷启动对推荐系统来说是一个挑战，究其原因是因为现有的推荐算法，无论是召回、">
+<meta property="og:type" content="article">
+<meta property="og:title" content="冷启动推荐模型DropoutNet深度解析与改进">
+<meta property="og:url" content="http://xudongyang.coding.me/dropoutnet/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="为什么需要冷启动通常推荐系统通过协同过滤、矩阵分解或是深度学习模型来生成推荐候选集，这些召回算法一般都依赖于用户-物品行为矩阵。在真实的推荐系统中，会有源源不断的新用户、新物品加入，这些新加入系统的用户和物品由于缺乏足够丰富的历史交互行为数据，常常不能获得准确的推荐内容，或被准确推荐给合适的用户。这就是所谓的推荐冷启动问题。冷启动对推荐系统来说是一个挑战，究其原因是因为现有的推荐算法，无论是召回、">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/5d751de88457bf4e97294be81bb9ab51.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/fa78350186190db1a7048a031d9705b2.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/7b65a6adaad090a01bba713bcacbdece.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/beb56846e94af8ecb1597dc2da6c45a6.png">
+<meta property="article:published_time" content="2022-03-03T09:57:13.000Z">
+<meta property="article:modified_time" content="2022-09-03T10:04:58.018Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="推荐冷启动">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img-blog.csdnimg.cn/img_convert/5d751de88457bf4e97294be81bb9ab51.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/dropoutnet/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>冷启动推荐模型DropoutNet深度解析与改进 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-essays">
+
+    <a href="/categories/essays/" rel="section"><i class="fa fa-leaf fa-fw"></i>软技能</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/dropoutnet/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          冷启动推荐模型DropoutNet深度解析与改进
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-03-03 17:57:13" itemprop="dateCreated datePublished" datetime="2022-03-03T17:57:13+08:00">2022-03-03</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-03 18:04:58" itemprop="dateModified" datetime="2022-09-03T18:04:58+08:00">2022-09-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/dropoutnet/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/dropoutnet/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>12k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>11 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="为什么需要冷启动"><a href="#为什么需要冷启动" class="headerlink" title="为什么需要冷启动"></a>为什么需要冷启动</h2><p>通常推荐系统通过协同过滤、矩阵分解或是深度学习模型来生成推荐候选集，这些召回算法一般都依赖于用户-物品行为矩阵。在真实的推荐系统中，会有源源不断的新用户、新物品加入，这些新加入系统的用户和物品由于缺乏足够丰富的历史交互行为数据，常常不能获得准确的推荐内容，或被准确推荐给合适的用户。这就是所谓的推荐冷启动问题。冷启动对推荐系统来说是一个挑战，究其原因是因为现有的<strong>推荐算法，无论是召回、粗排还是精排模块，都对新用户、新物品不友好</strong>，它们往往过度依赖系统收集到的用户行为数据，而新用户和新物品的行为数据是很少的。这就导致新物品能够获得的展现机会是偏少的；新用户的兴趣也无法被准确建模。</p>
+<p>对于某些业务来说，及时推荐新物品，让新物品获得足够的曝光量对于平台的生态建设和长期受益来说都是很重要的。比如，在新闻资讯的时效性很强，如不能及时获得展现机会其新闻价值就会大大降低；自媒体UGC平台如果不能让新发布的内容及时获得足够数量的展现就会影响内容创作者的积极性，从而影响平台在未来能够收纳的高质量内容的数量；相亲交友平台如果不能让新加入的用户获得足够多的关注，那么就可能不会有源源不断的新用户加入，从而让平台失去活跃性。</p>
+<p>综上，冷启动问题在推荐系统中至关重要，那么如何解决冷启动问题呢？</p>
+<h2 id="如何解决冷启动问题"><a href="#如何解决冷启动问题" class="headerlink" title="如何解决冷启动问题"></a>如何解决冷启动问题</h2><p>解决推荐系统的冷启动问题的算法（或策略）我总结为：“<strong>泛、快、迁、少</strong>” 四字口诀。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/5d751de88457bf4e97294be81bb9ab51.png" alt><br><a id="more"></a></p>
+<p><strong>泛</strong>：即对新物品进行<strong>泛化</strong>，在属性或主题上往更宽泛的概念上靠。比如，新上架一个商品，可以推荐给以往喜欢同品类的用户，也就是从 ”商品“ 上推至 ”品类“； 新上线一个短视频，可以推荐给关注了该视频作者的用户，也就是从 ”短视频“ 上推至 ”作者“；新发布的一篇新闻资讯，可以推荐给喜欢同一主题用户，比如把介绍”歼20“的文章推荐给一个军事迷，也就是从”新闻资讯“ 上推至 ”主题“。 本质上，这是一种基于内容的推荐（Content Based Recommandation）。当然，为了更好的推荐效果，我们有时候需要同时上推至多个不同的 ”上位概念“，比如新商品除了 上推至 ”品类“，还可以上推至 ”品牌“、”店铺“、”款式“、”颜色“等。上推的概念有时候是新物品天然就具有的，这种情况比较简单，比如商品的各种属性一般在商品发布的时候商家就填好了；也有些概念并不是本来就有，比如文章的主题，这篇文章是属于”军事“、”体育“、”美妆“ 等哪个主题是需要另外的算法来挖掘的。</p>
+<p>除了在标签或主题上的泛化，用某种算法得到用户和物品的embedding向量，再通过向量的距离/相似度来做用户和物品的兴趣匹配也是一种很常用的手段。矩阵分解、深度神经网络模型等算法都可以生成用户和物品的embedding向量，然而常规的模型还是需要依赖用户和物品的交互行为数据来建模，并不能很好地泛化到冷启动的用户和物品上。现在也有一些可以用来为冷启动用户和物品生成embedding向量的模型，比如下文要详细介绍的DropoutNet。</p>
+<p>上推或者泛化这种方法，虽然听上去很简单，也很好理解，不过，要往深了挖，也还是有很多工作可以做的。本质上，这是在利用物品的内容（属性）信息来弥补该新物品缺少历史交互行为的问题。比如，可以使用物品的多模态信息，如图片、视频等来做相关的推荐。例如，在相亲平台，可以给新用户（这里看作被推荐的物品）的照片颜值打一个分，然后推荐给具有相关颜值偏好的用户（这里指浏览推荐列表的用户）。</p>
+<p><strong>快</strong>：天下武功，唯快不破。所谓的冷启动物品，也就是缺少历史用户交互行为的物品，那么一个很自然的思路就是更快地收集到新物品的交互行为，并在推荐系统里加以利用。常规的推荐算法模型和数据都是以天为单位来更新，基于实时处理系统可以做到分钟级、甚至秒级的数据及模型更新。这类的方法，通常是基于强化学习/contextual bandit 类的算法。这里给两篇参考文章，就不赘述了:《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/35753281">Contextual Bandit算法在推荐系统中的实现及应用</a>》、《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/355882527">在生产环境的推荐系统中部署Contextual bandit算法的经验和陷阱</a>》。</p>
+<p><strong>迁</strong>：迁移学习是一种通过调用不同场景中的数据来建立模型的方法。通过迁移学习可以将知识从源域迁移到目标域。比如，新开了某个业务，只有少量样本，需要用其他场景的数据来建模。此时其他场景为源域，新业务场景为目标域。再比如，有些跨境电商平台在不同的国家有不同的站点，有些站点是新开的，只有很少的用户交互行为数据，这个时候可以用其他比较成熟的其他国家的站点的交互行为数据来训练模型，并用当前国家站点的少量样本做fine-tune，也能起到不错的冷启动效果。<br>使用迁移学习技术要注意的是源领域与目标领域需要具体一定的相关性，比如刚说的不同国家的站点可能卖的商品有很大一部分是重叠的。</p>
+<p><strong>少</strong>：少样本学习（few-shot learning）技术顾名思义是只使用少量监督数据训练模型的技术。其中一直典型的少样本学习方法是元学习（meta learning）。鉴于本文的目的不是介绍这些学习技术，这样不再过多介绍，有兴趣的同学可以参考一下：《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/361175558">基于元学习（Meta-Learning）的冷启动推荐模型</a>》。</p>
+<p>本文主要介绍一种基于“泛化”的方法，具体地，我们会详细介绍一种能应用于完全冷启动场景的embedding学习模型：DropoutNet。原始的DropoutNet模型需要提供用户和物品的embedding向量作为输入监督信号，这些embedding向量通常来自其他的算法模型，如矩阵分解等；使得模型使用门槛增高。本文提出了一种端到端的训练方式，直接使用用户的交互行为作为训练目标，大大降低了模型的使用门槛。</p>
+<p>另外，为了使模型的学习更加高效，本文在常规二分类预估模型的pointwise损失函数的基础上，增加了两种新的损失函数：一种是专注于提升AUC指标的rank loss；另一种是用于改进召回效果的<code>Support Vector Guided Softmax Loss</code>。后者创新性地采用了一种称之为“Negative Mining”的负采样技术，在训练过程中，自动从当前mini batch中采样负样本物品，从而扩大了样本空间，能达到更好的学习效果。</p>
+<p>因此，<strong>本文的贡献主要有两点</strong>，总结如下：</p>
+<ol>
+<li><strong>本文对原始DropoutNet模型进行了改造，直接使用用户与物品的交互行为数据作为训练目标进行端到端训练，从而避免了需要使用其他模型提供用户和物品的embedding作为监督信号</strong>。</li>
+<li><strong>文本创新性地提出了一种采用多种类型的损失函数的多任务学习框架，并在训练过程中使用了Negative Mining的负采样技术，在训练过程中从当前mini batch中采样负样本，扩大了样本空间，使得学习更加高效，同时适用于训练数据量比较少的场景</strong>。</li>
+</ol>
+<h2 id="DropoutNet模型解析"><a href="#DropoutNet模型解析" class="headerlink" title="DropoutNet模型解析"></a>DropoutNet模型解析</h2><p>NIPS 2017的文章《DropoutNet: Addressing Cold Start in Recommender Systems》介绍了一种既适用于头部用户和物品，也适用于中长尾的、甚至全新的用户和物品的召回模型。</p>
+<p>DropoutNet是一个典型的双搭结构，用户tower用来学习用户的潜空间向量表示；对应地，物品tower用来学习物品的潜空间向量表示。当用户对当前物品具有某种交互行为，比如点击、购买时，模型的损失函数设计设定用户的向量表示与物品的向量表示距离尽可能近；当给用户展现了某物品，并且用户没有对该物品产生任何交互行为时，对应的用户、物品pair构成一条负样本，模型会尽量让对应样本中用户的向量表示与物品的向量表示距离尽可能远。</p>
+<p>为了使模型适用于推荐系统的任何阶段，既能用来学习头部用户与物品的向量表示，又能用来学习中长尾、甚至全新的用户与物品的向量表示，DropoutNet把用户和物品的特征都分为两个部分：内容特征、偏好统计特征。内容特征相对比较稳定，不太会经常改变，并且一般在用户注册或者物品上线时就已经收集到对应的信息。另一方面偏好统计特征是基于交互行日志统计得到的特征，是动态的、会随着时间的变化而变化。全新的用户和物品由于没有对应的交互行为，因而不会有偏好统计特征。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/fa78350186190db1a7048a031d9705b2.png" alt></p>
+<p>那么DropoutNet是如何使模型适用于学习全新的物品和用户向量表示的呢？其实思路非常简单，借鉴了深度学习中的dropout的思想，对输入的部分特征按照一定概率强行置为0，即所谓的input dropout。注意这里的dropout不是作用在神经网络模型的神经元上，而是直接作用在input节点上。具体地，用户和物品的偏好统计特征在学习过程中都有一定的概率被置0，而内容维度的特征则不会进行dropout操作。</p>
+<p>根据论文的介绍，DropoutNet借鉴了降噪自动编码机（denoising autoencoder）的思想，即训练模型接受被corrupted的输入来重建原始的输入，也就是学习一个模型使其能够在部分输入特征缺失的情况下仍然能够得到比较精确的向量表示，具体地，<strong>模型是要使得在输入被corrupted的情况下学习到的用户向量与物品向量的相关性分尽可能接近输入在没有被corrupted的情况下学习到的用户向量与物品向量的相关性分</strong>。</p>
+<p>目标函数为：</p>
+<script type="math/tex; mode=display">O=\sum_{u,v}\left( U_u V_v^T - f_U(U_u,\Phi_u^U)f_V(V_v,\Phi_v^V)^T  \right)^2 = \sum_{u,v}(U_u V_v^T - \hat{U}_u \hat{V}_v^T)^2</script><p>其中，$\hat{U}_u$是模型学到的用户向量表示， $\hat{V}_v$是模型学到的物品向量表示；<strong>$U_u$和$V_v$分别是外部输入的、作为监督信号的用户和物品向量表示，一般是通过其他模型学习得到</strong>。</p>
+<p>为了使模型适用于用户冷启动场景，训练过程中对用户的偏好统计特征进行dropout：</p>
+<script type="math/tex; mode=display">\text{user cold start: } O_{uv}=\left( U_u V_v^T - f_U(0,\Phi_u^U)f_V(V_v,\Phi_v^V)^T \right)^2</script><p>为了使模型适用于物品冷启动场景，训练过程中对用户的偏好统计特征进行dropout：</p>
+<script type="math/tex; mode=display">\text{item cold start: } O_{uv}=\left( U_u V_v^T - f_U(U_u,\Phi_u^U)f_V(0,\Phi_v^V)^T \right)^2</script><p>DrouputNet模型的学习过程如算法1所示：</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/7b65a6adaad090a01bba713bcacbdece.png" alt></p>
+<h2 id="端到端训练改造"><a href="#端到端训练改造" class="headerlink" title="端到端训练改造"></a>端到端训练改造</h2><p>DropoutNet模型的一大弊端是需要提供用户和物品的embedding向量作为监督信号。模型通过dropout的方式mask掉一部分输入特征，并试图通过部分输入特征学习到能够重建用户与物品embedding向量相似度的向量表示，原理类似于降噪自动编码机。这就意味着我们需要另一个模型来学习用户与物品的embedding向量，从整个流程来看是需要分两阶段来完成学习目标，第一阶段训练一个模型得到用户与物品的embedding向量，第二阶段训练DropoutNet模型得到更加robust的向量表示，并且能够适用于全新的冷启动用户和物品。</p>
+<p>为了简化训练流程，我们提出了一种端到端训练的方式，在新的训练方式下，不再需要提供用于和物品的embedding向量作为监督信号，取而代之，我们使用用户与物品的交互行为作为监督信号。比如，类似于点击率预估模型，如果用户点击了某物品，则该用户与物品构成正样本；那些展现给用户但却没有被点击的商品构建成负样本。通过损失函数的设计，可以使模型学习到正样本的用户与物品向量表示的相似度尽可能高，负样本的用户与物品的向量表示的相似度尽可能低。例如，可以使用如下的损失函数：</p>
+<script type="math/tex; mode=display">L=-\left[ylog(\hat{U}_u \hat{V}_{v^+}^T)+(1-y)log(1-\hat{U}_u \hat{V}_{v^-}^T) \right]</script><p>其中，$y \in \{0, 1\}$ 是模型拟合的目标；$v^+$表示与用户$u$有交互行为的物品；$v^-$表示与用户$u$没有交互行为的物品。</p>
+<h2 id="在线负采样-amp-损失函数"><a href="#在线负采样-amp-损失函数" class="headerlink" title="在线负采样 &amp; 损失函数"></a>在线负采样 &amp; 损失函数</h2><p>作为一个推荐系统召回阶段的模型，如果只是使用曝光日志来构建训练样本是不够的，因为通常情况下用户只能被展现一小部分物品，平台上大部分物品可能从未对当前用户曝光过，如果这些未曝光的物品不与当前用户构建成样本，则模型的只能探索到潜在样本空间的很小一部分，使得模型的泛化性能较弱。</p>
+<p>样本负采样是召回模型常用的技术，也是保证模型效果的关键。负采样有多种方法，可以参考Facebook的论文《Embedding-based Retrieval in Facebook Search》，这里不再赘述。下面仅从实现的角度来谈谈具体如何做样本负采样。</p>
+<p>样本负采样通常有两种做法，如下表所示。</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>负采样方法</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>离线负采样</td>
+<td>实现简单</td>
+<td>样本空间有限、训练速度较慢</td>
+</tr>
+<tr>
+<td>在线负采样</td>
+<td>训练时动态拓展样本空间，训练较快速</td>
+<td>实现较复杂</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>在线样本负采样也有不同的实现方式。比如可以用一个全局共享内存来维护待采样的物品集，这种方式的一个缺点是实现起来比较复杂。一般情况下，我们都会收集汇聚多天的用户行为日志用来构建样本，样本的总量是很大的，无法全部放入内存中。同一个物品出现在多天的样本中时，对应的统计特征也是不同的，稍有处理不当就可能发生特征穿越的问题。</p>
+<p>另一种更讨巧的实现方式是从当前mini-batch中采样。因为训练数据需要全局混洗（shuffle）之后再用来训练模型，这样每个mini-batch中的样本集都是随机采样得到的，当我们从mini-batch中采样负样本时，理论上相当于是对全局样本进行了负采样。这种方式实现起来比较简单，本文就是采用这种在线采样的方法。</p>
+<p>具体地，训练过程中，用户、物品特征执行完网络的forward阶段后，得到了用户embedding、物品embedding，接下来我们通过对物品embedding矩阵（batch_size * embedding_size）做一个按行偏移操作（row-wise roll），把矩阵的行（对应物品embedding）整体向下移动 N 行，被移出矩阵的N行再重现插入到矩阵最前面的N行，相当于是在一个循环队列中依次往一个方向移动了N步。这样就得到了一个负样本的用户物品pair $&lt; u, i_1^{-} &gt;$，重复上述操作M次就得到了M个负样本pair。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/beb56846e94af8ecb1597dc2da6c45a6.png" alt></p>
+<p>改造后的DropoutNet网络如上图所示。首先，计算用户语义向量与正样本物品的余弦相似度,记为 $R(u,i^+)$；然后计算用户语义向量与$N$个负样本物品的余弦相似度分别记为$R(u,i_1^-),\cdots,R(u,i_N^-)$，对这$N+1$个相似度分数做softmax变换，得到用户对物品的偏好概率；最后损失函数为用户对正样本物品的偏好概率的负对数，如下：</p>
+<script type="math/tex; mode=display">L=-log(P(i^+|u))=-log \left( \frac{exp(R(u,i^+))}{exp(R(u,i^+)) + \sum_{j \in Neg} exp(R(u,i_j^-))} \right)</script><p>更进一步，我们参考了论文《<a target="_blank" rel="noopener" href="https://128.84.21.199/abs/1812.11317">Support Vector Guided Softmax Loss for Face Recognition</a>》的思路，在实现softmax损失函数过程中引入了最大间隔和支持向量的做法，通过在训练过程中使用“削弱正确”和“放大错误”的方式，强迫模型在训练时挑战更加困难的任务，使得模型更高鲁棒，在预测阶段可以轻松做出正确判断。</p>
+<p>基于负采样的support vector guided softmax loss的tensorflow实现代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">softmax_loss_with_negative_mining</span>(<span class="params">user_emb,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      item_emb,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      labels,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      num_negative_samples=<span class="number">4</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      embed_normed=<span class="literal">False</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      weights=<span class="number">1.0</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      gamma=<span class="number">1.0</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      margin=<span class="number">0</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                      t=<span class="number">1</span></span>):</span></span><br><span class="line">  <span class="string">&quot;&quot;&quot;Compute the softmax loss based on the cosine distance explained below.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">  Given mini batches for `user_emb` and `item_emb`, this function computes for each element in `user_emb`</span></span><br><span class="line"><span class="string">  the cosine distance between it and the corresponding `item_emb`,</span></span><br><span class="line"><span class="string">  and additionally the cosine distance between `user_emb` and some other elements of `item_emb`</span></span><br><span class="line"><span class="string">   (referred to a negative samples).</span></span><br><span class="line"><span class="string">  The negative samples are formed on the fly by shifting the right side (`item_emb`).</span></span><br><span class="line"><span class="string">  Then the softmax loss will be computed based on these cosine distance.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">  Args:</span></span><br><span class="line"><span class="string">    user_emb: A `Tensor` with shape [batch_size, embedding_size]. The embedding of user.</span></span><br><span class="line"><span class="string">    item_emb: A `Tensor` with shape [batch_size, embedding_size]. The embedding of item.</span></span><br><span class="line"><span class="string">    labels: a `Tensor` with shape [batch_size]. e.g. click or not click in the session. It&#x27;s values must be 0 or 1.</span></span><br><span class="line"><span class="string">    num_negative_samples: the num of negative samples, should be in range [1, batch_size).</span></span><br><span class="line"><span class="string">    embed_normed: bool, whether input embeddings l2 normalized</span></span><br><span class="line"><span class="string">    weights: `weights` acts as a coefficient for the loss. If a scalar is provided,</span></span><br><span class="line"><span class="string">      then the loss is simply scaled by the given value. If `weights` is a</span></span><br><span class="line"><span class="string">      tensor of shape `[batch_size]`, then the loss weights apply to each corresponding sample.</span></span><br><span class="line"><span class="string">    gamma: smooth coefficient of softmax</span></span><br><span class="line"><span class="string">    margin: the margin between positive pair and negative pair</span></span><br><span class="line"><span class="string">    t: coefficient of support vector guided softmax loss</span></span><br><span class="line"><span class="string">  Return:</span></span><br><span class="line"><span class="string">    support vector guided softmax loss of positive labels</span></span><br><span class="line"><span class="string">  &quot;&quot;&quot;</span></span><br><span class="line">  batch_size = get_shape_list(item_emb)[<span class="number">0</span>]</span><br><span class="line">  <span class="keyword">assert</span> <span class="number">0</span> &lt; num_negative_samples &lt; batch_size, <span class="string">&#x27;`num_negative_samples` should be in range [1, batch_size)&#x27;</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> <span class="keyword">not</span> embed_normed:</span><br><span class="line">    user_emb = tf.nn.l2_normalize(user_emb, axis=-<span class="number">1</span>)</span><br><span class="line">    item_emb = tf.nn.l2_normalize(item_emb, axis=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">  vectors = [item_emb]</span><br><span class="line">  <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_negative_samples):</span><br><span class="line">    shift = tf.random_uniform([], <span class="number">1</span>, batch_size, dtype=tf.int32)</span><br><span class="line">    neg_item_emb = tf.roll(item_emb, shift, axis=<span class="number">0</span>)</span><br><span class="line">    vectors.append(neg_item_emb)</span><br><span class="line">  <span class="comment"># all_embeddings&#x27;s shape: (batch_size, num_negative_samples + 1, vec_dim)</span></span><br><span class="line">  all_embeddings = tf.stack(vectors, axis=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">  mask = tf.greater(labels, <span class="number">0</span>)</span><br><span class="line">  mask_user_emb = tf.boolean_mask(user_emb, mask)</span><br><span class="line">  mask_item_emb = tf.boolean_mask(all_embeddings, mask)</span><br><span class="line">  <span class="keyword">if</span> <span class="built_in">isinstance</span>(weights, tf.Tensor):</span><br><span class="line">    weights = tf.boolean_mask(weights, mask)</span><br><span class="line"></span><br><span class="line">  <span class="comment"># sim_scores&#x27;s shape: (num_of_pos_label_in_batch_size, num_negative_samples + 1)</span></span><br><span class="line">  sim_scores = tf.keras.backend.batch_dot(</span><br><span class="line">      mask_user_emb, mask_item_emb, axes=(<span class="number">1</span>, <span class="number">2</span>))</span><br><span class="line">  pos_score = tf.<span class="built_in">slice</span>(sim_scores, [<span class="number">0</span>, <span class="number">0</span>], [-<span class="number">1</span>, <span class="number">1</span>])</span><br><span class="line">  neg_scores = tf.<span class="built_in">slice</span>(sim_scores, [<span class="number">0</span>, <span class="number">1</span>], [-<span class="number">1</span>, -<span class="number">1</span>])</span><br><span class="line"></span><br><span class="line">  loss = support_vector_guided_softmax_loss(</span><br><span class="line">      pos_score, neg_scores, margin=margin, t=t, smooth=gamma, weights=weights)</span><br><span class="line">  <span class="keyword">return</span> loss</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">support_vector_guided_softmax_loss</span>(<span class="params">pos_score,</span></span></span><br><span class="line"><span class="function"><span class="params">                                       neg_scores,</span></span></span><br><span class="line"><span class="function"><span class="params">                                       margin=<span class="number">0</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                       t=<span class="number">1</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                       smooth=<span class="number">1.0</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                       threshold=<span class="number">0</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                                       weights=<span class="number">1.0</span></span>):</span></span><br><span class="line">  <span class="string">&quot;&quot;&quot;Refer paper: Support Vector Guided Softmax Loss for Face Recognition (https://128.84.21.199/abs/1812.11317).&quot;&quot;&quot;</span></span><br><span class="line">  new_pos_score = pos_score - margin</span><br><span class="line">  cond = tf.greater_equal(new_pos_score - neg_scores, threshold)</span><br><span class="line">  mask = tf.where(cond, tf.zeros_like(cond, tf.float32),</span><br><span class="line">                  tf.ones_like(cond, tf.float32))  <span class="comment"># I_k</span></span><br><span class="line">  new_neg_scores = mask * (neg_scores * t + t - <span class="number">1</span>) + (<span class="number">1</span> - mask) * neg_scores</span><br><span class="line">  logits = tf.concat([new_pos_score, new_neg_scores], axis=<span class="number">1</span>)</span><br><span class="line">  <span class="keyword">if</span> <span class="number">1.0</span> != smooth:</span><br><span class="line">    logits *= smooth</span><br><span class="line"></span><br><span class="line">  loss = tf.losses.sparse_softmax_cross_entropy(</span><br><span class="line">      tf.zeros_like(pos_score, dtype=tf.int32), logits, weights=weights)</span><br><span class="line">  <span class="comment"># set rank loss to zero if a batch has no positive sample.</span></span><br><span class="line">  loss = tf.where(tf.is_nan(loss), tf.zeros_like(loss), loss)</span><br><span class="line">  <span class="keyword">return</span> loss</span><br></pre></td></tr></table></figure></p>
+<p>源代码：<a target="_blank" rel="noopener" href="https://github.com/alibaba/EasyRec/blob/master/easy_rec/python/loss/softmax_loss_with_negative_mining.py">https://github.com/alibaba/EasyRec/blob/master/easy_rec/python/loss/softmax_loss_with_negative_mining.py</a></p>
+<h3 id="Pairwise-Ranking"><a href="#Pairwise-Ranking" class="headerlink" title="Pairwise Ranking"></a>Pairwise Ranking</h3><p>Pointwise, pairwise和listwise是LTR(Learning to Rank)领域为人熟知的三种优化目标，早在深度学习时代之前，做IR的研究者就已经发展了一系列基本方法，比较经典的工作可以参考 《<a target="_blank" rel="noopener" href="https://icml.cc/Conferences/2015/wp-content/uploads/2015/06/icml_ranking.pdf?spm=ata.21736010.0.0.2536716aZRj3GA&amp;file=icml_ranking.pdf">Learning to Rank Using Gradient Descent</a>》 和 《<a target="_blank" rel="noopener" href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2007-40.pdf?spm=ata.21736010.0.0.2536716aZRj3GA&amp;file=tr-2007-40.pdf">Learning to Rank- From Pairwise Approach to Listwise Approach</a>》这两篇。</p>
+<p>Pairwise的重要意义在于让模型的训练目标和模型实际的任务之间尽量统一。对于一个排序任务，真实的目标是让正样本的预估分数比负样本的高，对应了AUC这样的指标。在pairwise的经典论文RankNet中，pairwise的优化目标被写成了,</p>
+<script type="math/tex; mode=display">C_{ij}=-y_{ij}logP_{ij}-(1-y_{ij})log(1-P_{ij})</script><script type="math/tex; mode=display">P_{ij}=\frac{e^{f(x_i)-f(x_j)}}{1+e^{f(x_i)-f(x_j)}}</script><p>这里$P_{ij}$代表模型预估样本$i$比$j$更“相关”的概率，其中$f(x_i)-f(x_j)$是两条样本模型pointwise输出logit的差值；$y_{ij}=max(y_i-y_j,0), y_i \in \{0, 1\}, y_j \in \{0, 1\}$。直观上理解，优化$C_{ij}$就是在提高模型对于任意正样本分数比任意负样本分数高的概率，也即AUC, 所以这种形式的pairwise loss也被称为AUC loss。</p>
+<p>同样，为了方便实现，以及减少离线构建pair样本的工作量，我们选择了<code>In-batch Random Pairing</code>的方式在训练过程中，从mini batch内构建pair来计算pairwise rank loss。具体实现代码如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">pairwise_loss</span>(<span class="params">labels, logits</span>):</span></span><br><span class="line">  pairwise_logits = tf.expand_dims(logits, -<span class="number">1</span>) - tf.expand_dims(logits, <span class="number">0</span>)</span><br><span class="line">  logging.info(<span class="string">&#x27;[pairwise_loss] pairwise logits: &#123;&#125;&#x27;</span>.<span class="built_in">format</span>(pairwise_logits))</span><br><span class="line"></span><br><span class="line">  pairwise_mask = tf.greater(</span><br><span class="line">      tf.expand_dims(labels, -<span class="number">1</span>) - tf.expand_dims(labels, <span class="number">0</span>), <span class="number">0</span>)</span><br><span class="line">  logging.info(<span class="string">&#x27;[pairwise_loss] mask: &#123;&#125;&#x27;</span>.<span class="built_in">format</span>(pairwise_mask))</span><br><span class="line"></span><br><span class="line">  pairwise_logits = tf.boolean_mask(pairwise_logits, pairwise_mask)</span><br><span class="line">  logging.info(<span class="string">&#x27;[pairwise_loss] after masking: &#123;&#125;&#x27;</span>.<span class="built_in">format</span>(pairwise_logits))</span><br><span class="line"></span><br><span class="line">  pairwise_pseudo_labels = tf.ones_like(pairwise_logits)</span><br><span class="line">  loss = tf.losses.sigmoid_cross_entropy(pairwise_pseudo_labels,</span><br><span class="line">                                         pairwise_logits)</span><br><span class="line">  <span class="comment"># set rank loss to zero if a batch has no positive sample.</span></span><br><span class="line">  loss = tf.where(tf.is_nan(loss), tf.zeros_like(loss), loss)</span><br><span class="line">  <span class="keyword">return</span> loss</span><br></pre></td></tr></table></figure>
+<p>源代码：<a target="_blank" rel="noopener" href="https://github.com/alibaba/EasyRec/blob/master/easy_rec/python/loss/pairwise_loss.py">https://github.com/alibaba/EasyRec/blob/master/easy_rec/python/loss/pairwise_loss.py</a></p>
+<h2 id="模型实现开源代码"><a href="#模型实现开源代码" class="headerlink" title="模型实现开源代码"></a>模型实现开源代码</h2><p>我们在阿里云机器学习PAI团队开源的推荐算法框架<a target="_blank" rel="noopener" href="https://github.com/alibaba/EasyRec/">EasyRec</a>中发布了DropoutNet的源代码。使用文档请查看：<a target="_blank" rel="noopener" href="https://easyrec.readthedocs.io/en/latest/models/dropoutnet.html">https://easyrec.readthedocs.io/en/latest/models/dropoutnet.html</a>。</p>
+<p>EasyRec是一个易于使用的推荐算法模型训练框架，它内置了很多最先进的推荐算法模型，包括适用于推荐系统召回、排序和冷启动阶段的各种算法。可以跑在本地、DLC、MaxCompute、DataScience等多个平台上，支持从各种存储媒介（local、hdfs、maxcompute table、oss、kafka）中加载各种格式类型(text、csv、table、tfrecord)的训练和评估数据。EasyRec支持多种类型的特征，损失函数，优化器及评估指标，支持大规模并行训练。使用EasyRec，只需要配置config文件，通过命令调用的方式就可以实现训练、评估、导出、推理等功能，无需进行代码开发，帮您快速搭建推广搜算法。</p>
+<p>欢迎加入【EasyRec推荐算法交流群】，钉钉群号 : 32260796。</p>
+<p>EasyRec Github代码仓库：<a target="_blank" rel="noopener" href="https://github.com/alibaba/EasyRec/">https://github.com/alibaba/EasyRec/</a></p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://papers.nips.cc/paper/2017/file/dbd22ba3bd0df8f385bdac3e9f8be207-Paper.pdf">DropoutNet 论文</a></li>
+<li><a target="_blank" rel="noopener" href="https://128.84.21.199/abs/1812.11317">Support Vector Guided Softmax Loss for Face Recognition</a></li>
+<li>Embedding-based Retrieval in Facebook Search</li>
+<li><a target="_blank" rel="noopener" href="https://icml.cc/Conferences/2015/wp-content/uploads/2015/06/icml_ranking.pdf?spm=ata.21736010.0.0.2536716aZRj3GA&amp;file=icml_ranking.pdf">Learning to Rank Using Gradient Descent</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2007-40.pdf?spm=ata.21736010.0.0.2536716aZRj3GA&amp;file=tr-2007-40.pdf">Learning to Rank- From Pairwise Approach to Listwise Approach</a></li>
+<li><a target="_blank" rel="noopener" href="https://easyrec.readthedocs.io/en/latest/models/dropoutnet.html">EasyRec DropoutNet 模型使用指南</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E5%86%B7%E5%90%AF%E5%8A%A8/" rel="tag"># 推荐冷启动</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/multi-task-learning/" rel="prev" title="多任务学习算法在推荐系统中的应用">
+      <i class="fa fa-chevron-left"></i> 多任务学习算法在推荐系统中的应用
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/rec-sys-check-list/" rel="next" title="推荐算法效果不佳时的检查清单">
+      推荐算法效果不佳时的检查清单 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%86%B7%E5%90%AF%E5%8A%A8"><span class="nav-number">1.</span> <span class="nav-text">为什么需要冷启动</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E8%A7%A3%E5%86%B3%E5%86%B7%E5%90%AF%E5%8A%A8%E9%97%AE%E9%A2%98"><span class="nav-number">2.</span> <span class="nav-text">如何解决冷启动问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DropoutNet%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">DropoutNet模型解析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%AE%AD%E7%BB%83%E6%94%B9%E9%80%A0"><span class="nav-number">4.</span> <span class="nav-text">端到端训练改造</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9C%A8%E7%BA%BF%E8%B4%9F%E9%87%87%E6%A0%B7-amp-%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0"><span class="nav-number">5.</span> <span class="nav-text">在线负采样 &amp; 损失函数</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Pairwise-Ranking"><span class="nav-number">5.1.</span> <span class="nav-text">Pairwise Ranking</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E5%AE%9E%E7%8E%B0%E5%BC%80%E6%BA%90%E4%BB%A3%E7%A0%81"><span class="nav-number">6.</span> <span class="nav-text">模型实现开源代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">7.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">55</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.linkedin.com/in/%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169/" title="LinkedIn → https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169&#x2F;" rel="noopener" target="_blank"><i class="fab fa-linkedin fa-fw"></i>LinkedIn</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fa fa-book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fa fa-blog fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab fa-blogger fa-fw"></i>博客园</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://yang_xu_dong.gitee.io/" title="https:&#x2F;&#x2F;yang_xu_dong.gitee.io" rel="noopener" target="_blank">国内镜像</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">334k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">5:03</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

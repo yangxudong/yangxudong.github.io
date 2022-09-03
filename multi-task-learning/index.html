@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="粗略来看，推荐算法可以简单地分为召回和排序两个阶段。召回模块负责从海量的物品库里挑选出用户可能感兴趣的物品子集，过滤之后通常返回几百个物品。排序模块负责对召回阶段返回的物品集个性化排序，通常返回几十个物品组成的有序列表。 总结起来，召回和排序有如下特点：  召回层：候选集规模大、模型和特征简单、速度快，尽量保证用户感兴趣数据多召回。 排序层：候选集不大，目标是保证排序的精准，一般使用复杂和模型和特">
+<meta property="og:type" content="article">
+<meta property="og:title" content="多任务学习算法在推荐系统中的应用">
+<meta property="og:url" content="http://xudongyang.coding.me/multi-task-learning/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="粗略来看，推荐算法可以简单地分为召回和排序两个阶段。召回模块负责从海量的物品库里挑选出用户可能感兴趣的物品子集，过滤之后通常返回几百个物品。排序模块负责对召回阶段返回的物品集个性化排序，通常返回几十个物品组成的有序列表。 总结起来，召回和排序有如下特点：  召回层：候选集规模大、模型和特征简单、速度快，尽量保证用户感兴趣数据多召回。 排序层：候选集不大，目标是保证排序的精准，一般使用复杂和模型和特">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/simple_rec_sys_framework.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/e5bccff15c1a50efe3d6cdeffe512d4c.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/770eeab7f222532280c904a9ea6a4f4f.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/dabcd5fa937367819223a97b871ee046.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/2130d0a897c34d8fe7f972d667521ea8.jpeg">
+<meta property="og:image" content="https://pic3.zhimg.com/80/v2-0d88435b4377eaefc60c28690ac73a1e_1440w.jpg">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/f48503e5a734986a0012412e37d6a8d3.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/1cc38c2b01af7bde22f9f48f7948c6d1.jpeg">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/af23e6ac6e1362125d26e33fc28da21b.jpeg">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/4cf270a06c905cfc74bd9019b60db184.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/8b2d2b21e46c192951edf147d701fc51.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/item_detail_page.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/783a9da64be4a587a20b5b9b4f91f05b.png">
+<meta property="article:published_time" content="2021-12-04T09:18:14.000Z">
+<meta property="article:modified_time" content="2022-09-03T09:49:42.095Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="多任务学习">
+<meta property="article:tag" content="Multi Task Learning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/simple_rec_sys_framework.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/multi-task-learning/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>多任务学习算法在推荐系统中的应用 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-essays">
+
+    <a href="/categories/essays/" rel="section"><i class="fa fa-leaf fa-fw"></i>软技能</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/multi-task-learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          多任务学习算法在推荐系统中的应用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-12-04 17:18:14" itemprop="dateCreated datePublished" datetime="2021-12-04T17:18:14+08:00">2021-12-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-03 17:49:42" itemprop="dateModified" datetime="2022-09-03T17:49:42+08:00">2022-09-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/multi-task-learning/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/multi-task-learning/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>7 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>粗略来看，推荐算法可以简单地分为召回和排序两个阶段。召回模块负责从海量的物品库里挑选出用户可能感兴趣的物品子集，过滤之后通常返回几百个物品。排序模块负责对召回阶段返回的物品集个性化排序，通常返回几十个物品组成的有序列表。</p>
+<p>总结起来，召回和排序有如下特点：</p>
+<ul>
+<li>召回层：候选集规模大、模型和特征简单、速度快，尽量保证用户感兴趣数据多召回。</li>
+<li>排序层：候选集不大，目标是保证排序的精准，一般使用复杂和模型和特征。</li>
+</ul>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/simple_rec_sys_framework.png" alt="simple_rec_sys_framework"></p>
+<p>使用排序模块的三个原因：</p>
+<ol>
+<li>多路召回的候选集缺乏统一的相关性度量，不同类型的召回物品不可比；</li>
+<li>召回阶段通常只计算候选物品的相关性，对业务指标（如转化率、dwell time、GMV等）缺乏直接有效的度量；</li>
+<li>当有多个业务关心的指标时，召回模块通常无能为力。</li>
+</ol>
+<p>比如，在电商场景业务通常比较关心总成交额（GMV）这一指标，通过目标拆解：<code>GMV = 流量 × CTR × CVR × price</code>，我们发现流量和price通常不是算法能够控制的，那么算法需要干预的是CTR和CVR，也就是点击率和转化率。我们可以分别训练一个点击率预估模型和一个转化率预估模型，或者只训练一个多目标模型同时建模点击率预估和转化率预估。有了预估的<code>CTR</code>和<code>CVR</code>之后，我们就可以按照如下公式来对候选商品排序：</p>
+<script type="math/tex; mode=display">rank\_score=ctr \cdot cvr \cdot [log(price)]^{\alpha}</script><p>这里对price项做log和指数变换的原因是通常price的值比较大，跟ctr和cvr不在一个量级上，如果不做变换会在排序公式中占据统治地位。</p>
+<p>训练一个排序模型通常分为 模型选择、样本构建、特征工程、模型开发、训练&amp;评估 等几个阶段。下面我们就以电商平台商品详情页的推荐场景为例，介绍一下排序模型建模的详细流程和方法。<br><a id="more"></a></p>
+<h2 id="1-模型选择"><a href="#1-模型选择" class="headerlink" title="1. 模型选择"></a>1. 模型选择</h2><p>通过前文的分析，我们确定了要在统一模型中同时建模CTR预估和CVR预估，这么做一个明显的好处是在推荐链路上只需要一个精排model，而不需要串联两个精排model。因此我们需要一个多任务学习模型。</p>
+<blockquote>
+<p>Multi-Task Learning (MTL) is a learning paradigm in machine learning and its aim is to leverage useful information contained in multiple related tasks to help improve the generalization performance of all the tasks.</p>
+</blockquote>
+<p>在文献中，多任务学习有一些别的名字：joint learning, learning to learn, and learning with auxiliary tasks 。广义上来说，当我们在优化多个损失函数时，我们就在使用多任务学习范式。</p>
+<p>多任务学习之所以能改善各个任务单独建模的效果，是因为以下几个原因：</p>
+<ol>
+<li><strong>隐式数据增强</strong>。为某任务训练模型，目标是为该任务学习一个好的特征表示，然而通常训练数据中或多或少都包含一些噪音，只学习当前任务会面临过拟合的风险，如果同时学习多个任务则可以通过平均化不同任务的噪音得到一个适用于多个任务的更好的表示。</li>
+<li><strong>注意力聚焦</strong>。如果某任务的训练数据噪音很多，或者训练数据有限，并且特征维数很高，则模型很难区分相关特征与不相关特征。MTL能够帮助模型把注意力聚焦到真正有用的特征上，因为其他学习任务可以提供额外的证据。</li>
+<li><strong>窃听</strong>。一些特征在任务A上很难被学习，而在任务B上很容易被学习。可能的原因是在任务A与该特征存在更加复杂的交互关系，或者其他特征影响了模型学习这些特征的能力。</li>
+<li><strong>表示偏置</strong>。每个机器学习模型都存在某种程度的归纳偏置，MTL的归纳偏置是偏好那些适用于多个任务的特征表示。</li>
+<li><strong>正则化</strong>。MTL相当于给各个子任务添加了正则项参数约束，可以防止过拟合。</li>
+</ol>
+<p>这里介绍几个常用的多目标排序模型：NavieMultiTask，ESMM，MMoE，DBMTL，PLE。</p>
+<h3 id="①-NavieMultiTask"><a href="#①-NavieMultiTask" class="headerlink" title="① NavieMultiTask"></a>① NavieMultiTask</h3><p>在深度学习领域，MTL通常通过共享隐层的参数来实现，具体有两种共享参数的方法：hard parameter sharing 和 soft parameter sharing。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/e5bccff15c1a50efe3d6cdeffe512d4c.png" alt="image.png"></p>
+<p>在soft parameter sharing模式中，每个任务有自己的模型和参数，各任务模型参数的一部分通过正则化的方式使得彼此距离接近，比如通过 L2 正则化。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/770eeab7f222532280c904a9ea6a4f4f.png" alt="image.png"></p>
+<h3 id="②-ESMM"><a href="#②-ESMM" class="headerlink" title="② ESMM"></a>② ESMM</h3><p>“完整空间多任务模型”（Entire Space Multi-Task Model，ESMM），下文简称为ESMM模型，创新地利用用户行为序列数据，在完整的样本数据空间同时学习点击率和转化率（post-view clickthrough&amp;conversion rate，CTCVR），解决了传统CVR预估模型难以克服的样本选择偏差（sample selection bias）和训练数据过于稀疏（data sparsity ）的问题。</p>
+<p>以电子商务平台为例，用户在观察到系统展现的推荐商品列表后，可能会点击自己感兴趣的商品，进而产生购买行为。换句话说，用户行为遵循一定的顺序决策模式：<code>impression → click → conversion</code>。CVR模型旨在预估用户在观察到曝光商品进而点击到商品详情页之后购买此商品的概率，即 $pCVR = p(conversion|click,impression)$。</p>
+<p>假设训练数据集为$S=\{ (x_i,y_i \rightarrow z_i) \} |_{i=1}^N$，其中的样本$(x, y \rightarrow z)$是从域 $X × Y × Z$ 中按照某种分布采样得到的，$X$ 是特征空间， $Y$ 和 $Z$ 是标签空间， $N$ 为数据集中的样本总数量。在CVR预估任务中， $x$ 是高维稀疏多域的特征向量， $y$ 和 $z$ 的取值为0或1，分别表示是否点击和是否购买。$y \rightarrow z$ 揭示了用户行为的顺序性，即点击事情一般发生在购买事件之前。CVR模型的目标是预估条件概率pCVR ，与其相关的两个概率为点击率pCTR 和点击且转换率 pCTCVR ，它们之间的关系如下：</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/dabcd5fa937367819223a97b871ee046.png" alt></p>
+<p>传统的CVR预估任务通常采用类似于CTR预估的技术，比如最近很流行的深度学习模型。然而，有别于CTR预估任务，CVR预估任务面临一些特有的挑战：1) 样本选择偏差；2) 训练数据稀疏；3) 延迟反馈等。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/2130d0a897c34d8fe7f972d667521ea8.jpeg" alt><br>图1. 训练样本空间</p>
+<p>延迟反馈的问题不在本文讨论的范围内，下面简单介绍一下样本选择偏差与训练数据稀疏的问题。如图1所示，最外面的大椭圆为整个样本空间 S，其中有点击事件（ y=1 ）的样本组成的集合为，对应图中的阴影区域，传统的CVR模型就是用此集合中的样本来训练的，同时训练好的模型又需要在整个样本空间做预测推断。由于点击事件相对于展现事件来说要少很多，因此只是样本空间 S 的一个很小的子集，从上提取的特征相对于从 S 中提取的特征而言是有偏的，甚至是很不相同。从而，按这种方法构建的训练样本集相当于是从一个与真实分布不完全一致的分布中采样得到的，这一定程度上违背了机器学习算法之所以有效的前提：训练样本与测试样本必须独立地采样自同一个分布，即独立同分布的假设。总结一下，训练样本从整体样本空间的一个较小子集中提取，而训练得到的模型却需要对整个样本空间中的样本做推断预测的现象称之为样本选择偏差。样本选择偏差会伤害学到的模型的泛化性能。</p>
+<p>ESMM模型引入了两个辅助的学习任务，分别用来拟合pCTR和pCTCVR，从而同时消除了上文提到的两个挑战。ESMM模型能够充分利用用户行为的顺序性模式，其模型架构如图2所示。</p>
+<p><img src="https://pic3.zhimg.com/80/v2-0d88435b4377eaefc60c28690ac73a1e_1440w.jpg" alt><br>图2. ESMM模型</p>
+<p>整体来看，对于一个给定的展现，ESMM模型能够同时输出预估的pCTR、pCVR 和pCTCVR。它主要由两个子神经网络组成，左边的子网络用来拟合pCVR ，右边的子网络用来拟合pCTR。两个子网络的结构是完全相同的，这里把子网络命名为BASE模型。两个子网络的输出结果相乘之后即得到pCTCVR，并作为整个任务的输出。</p>
+<p>参考资料：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/37562283">CVR预估的新思路：完整空间多任务模型</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/42214716">构建分布式Tensorflow模型系列:CVR预估之ESMM</a></li>
+</ul>
+<h3 id="③-MMoE"><a href="#③-MMoE" class="headerlink" title="③ MMoE"></a>③ MMoE</h3><p>MMOE模型的结构图如下：</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/f48503e5a734986a0012412e37d6a8d3.png" alt></p>
+<p>模型 (a) 最为常见，也就是上文所说的NavieMultiTask方法的架构，两个任务直接共享模型的 bottom 部分，只在最后处理时做区分，图 (a) 中使用了 Tower A 和 Tower B，然后分别接损失函数。函数表达式：</p>
+<script type="math/tex; mode=display">y^k = h^k \left( f(x) \right)</script><p>模型 (b) 是常见的多任务学习模型。将 input 分别输入给三个 Expert，但三个 Expert 并不共享参数。同时将 input 输出给 Gate，Gate 输出每个 Expert 被选择的概率，然后将三个 Expert 的输出加权求和，输出给 Tower。有点 attention 的感觉。函数表达式：</p>
+<script type="math/tex; mode=display">y^k = h^k \left( \sum_{i=1}^n g_i f_i(x) \right)</script><ul>
+<li>k 表示k个任务；</li>
+<li>n 表示n个expert network；</li>
+</ul>
+<p>模型 (c) 是作者新提出的方法，对于不同的任务，模型的权重选择是不同的，所以作者为每个任务都配备一个 Gate 模型。对于不同的任务，特定的 Gate k 的输出表示不同的 Expert 被选择的概率，将多个 Expert 加权求和，得到 $f^k(x)$，并输出给特定的 Tower 模型，用于最终的输出。函数表达式：</p>
+<script type="math/tex; mode=display">f^k(x) = \sum_{i=1}^n g_i^k(x) f_i(x)</script><script type="math/tex; mode=display">g^k(x) = softmax(W_{g^k(x)})</script><p>其中： $g(x)$表示 gate 门的输出，为多层感知机模型，实现时为简单的线性变换加 softmax 层。</p>
+<h3 id="④-PLE"><a href="#④-PLE" class="headerlink" title="④ PLE"></a>④ PLE</h3><p>PLE模型是的MMoE模型的一种优化，重新设计了网络结构来解决“跷跷板现象”。所谓的“跷跷板现象（seesaw phenomenon）”是指在对多个目标进行优化的过程中，一个任务指标的提升伴随着另外一些任务指标的下降。PLE模型提出了一种更加有效的参数共享的网络结构（分为task-specific部分和sharing部分，之后通过类似attention的方式进行加权），论文中把单层共享参数的模型网络称之为CGC网络，堆叠多层共享参数网络的模型称之为PLE模型。</p>
+<h4 id="1-CGC网络"><a href="#1-CGC网络" class="headerlink" title="1. CGC网络"></a>1. CGC网络</h4><p><img src="https://img-blog.csdnimg.cn/img_convert/1cc38c2b01af7bde22f9f48f7948c6d1.jpeg" alt><br>CGC网络结构</p>
+<p>为了解决seesaw phenomenon和negative transfer效应，文章提出了PLE网络结构，而PLE结构可以看做是CGC网络结构的进一步扩展（CGC是single-level的，PLE是multi-level的）。整个CGC网络结构如上图所示。从图中的网络结构可以看出，CGC的底层网络主要包括shared experts和task-specific expert构成，每一个expert module都由多个子网络组成，子网络的个数和网络结构（维数）都是超参数；上层由多任务网络构成，每一个多任务网络（towerA和towerB）的输入都是由gating网络进行加权控制，每一个子任务的gating网络的输入包括两部分，其中一部分是本任务下的task-specific部分的experts和shared部分的experts组成（即gating network网络结构中的vector1……vector m），输入input作为gating network的selector。而gating网络的结构也是比较简单的，只是一个单层的前向FC，利用输入作为筛选器（selector）获得不同子网络所占的权重大小，进而得到不同任务下gating网络的加权和。也就是说CGC网络结构保证了，每个子任务会根据输入来对task-specific和shared两部分的expert vector进行加权求和，从而每个子任务网络得到一个embedding，再经过每个子任务的tower就得到了对应子任务的输出。</p>
+<p>CGC网络的好处是即包含了task-specific网络独有的个性化信息，也包含了shared网络具有的更加泛化的信息，文章指出虽然MMoE模型在理论上可以得到同样的解，但是在实际训练过程中很难收敛到这种情况。</p>
+<h4 id="2-PLE网络"><a href="#2-PLE网络" class="headerlink" title="2. PLE网络"></a>2. PLE网络</h4><p>上面看到了CGC网络是一种single-level的网络结构，一个比较直观的思路就是叠加多层CGC网络（获得更加丰富的表征能力），而PLE网络结构就是将CGC拓展到了multi-level下。具体网络结构如下图所示。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/af23e6ac6e1362125d26e33fc28da21b.jpeg" alt><br>PLE网络结构</p>
+<p>与CGC网络（PLE里的Extraction Network）不同的是：</p>
+<ol>
+<li>在底层的Extraction网络中，除了各个子任务的gating network外，还包含有一个share部分的gating network，这部分gating network的输入包含了所有input，而各个子任务的gating network的输入是task-specific和share两部分；</li>
+<li><p>在上层Extraction Network中input不再是原始的input向量，而是底层Extraction Network网络各个gating network输出结果的fusion result。</p>
+<h4 id="3-损失函数的设计"><a href="#3-损失函数的设计" class="headerlink" title="3. 损失函数的设计"></a>3. 损失函数的设计</h4></li>
+</ol>
+<p>论文指出在设计损失函数时，主要是解决两个问题，一个是多任务模型不同人物之间的样本空间不同；另一个是不同任务之间的权重设定。</p>
+<p>针对第一个问题，文章的解决思路是训练样本空间为全部任务的样本空间的并集，而针对每个任务计算loss时，只考虑这个任务的样本空间</p>
+<script type="math/tex; mode=display">L_k(\theta_k,\theta_s)=\frac{1}{\sum_i \delta_k^i} \sum_i \delta_k^i loss_k \left( \hat{y}_k^i (\theta_k,\theta_s), y_k^i \right)</script><p>针对第二个问题，传统方法是人工设定一个固定的权重比例，这个需要人工来进行调整，文章给出的思路就是一种自适应动态调节的方案，在训练过程中调整不同任务之间的权重 $w_k^t=w_{k,0} \times \gamma_k^t$，最终的loss如下</p>
+<script type="math/tex; mode=display">L(\theta_1,\cdots,\theta_K,\theta_s)=\sum_{k=1}^K w_k L_k(\theta_k, \theta_s)</script><h3 id="⑤-DBMTL"><a href="#⑤-DBMTL" class="headerlink" title="⑤ DBMTL"></a>⑤ DBMTL</h3><p>推荐系统的多个目标之间可能是高度相关 或者 互相抑制关系，DBMTL模型可用于建模目标之间可能存在的因果关系，如下图：</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/4cf270a06c905cfc74bd9019b60db184.png" alt></p>
+<p>公式为：</p>
+<script type="math/tex; mode=display">P(l,m|x,H)=P(l|x,H)P(m|l,x,H)  \tag 1</script><script type="math/tex; mode=display">P(l,m|x,H)=P(m|x,H)P(l|m,x,H) \tag 2</script><p>公式（1）和 （2）从概率的角度讲都是对的, 该如何选择呢？<br>这其实就是判断目标  与目标  哪个为因哪个为果。<br>在没有明显的因果关系时如何选择？需要声明的是，两种计算方法，论文中的原话是</p>
+<blockquote>
+<p>it’s a matter of which one is more “learnable” from data.</p>
+</blockquote>
+<ol>
+<li>在目标个数较少时，当然可以都试一试。</li>
+<li>建议选择发生概率大的为因，概率小的为果。</li>
+</ol>
+<p>损失函数为：</p>
+<script type="math/tex; mode=display">L(x,H)=-\left[ w_1 \cdot log(p(t_1|x,H)) + w_2 \cdot log(p(t_2|t_1,x,H)) + w_3 \cdot log(p(t_3|t_1,t_2,x,H)) \right]</script><p>完整的DBMTL模型图是：</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/8b2d2b21e46c192951edf147d701fc51.png" alt></p>
+<h2 id="2-样本构建"><a href="#2-样本构建" class="headerlink" title="2. 样本构建"></a>2. 样本构建</h2><p>下面以电商平台的商品详情页个性化推荐场景为例，介绍一下如果构建训练样本。</p>
+<p>商品详情页通常有一个用户正在查看的主商品在页面上方，页面下方还会有一个或多个推荐商品列表，如下图所示，我们现在讨论的就是这些商品列表的个性化排序模型的样本如何构建。</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/item_detail_page.png" alt="item_detail_page"></p>
+<p>一般的个性化推荐排序模型，我们从用户和商品两个实体维度来构建样本，比如在ctr预估模型，用户点击了某商品，这这一对<user, item> 构成正样本（label=1）；反之，哪些在推荐列表中且没有被用户点击的商品构建成当前用户的负样本（label=0)。如果还需要同时建模其他目标，则添加多个label即可，比如添加是否购买的label。</user,></p>
+<p>商品详情页的个性化推荐列表一般情况下需要和主商品具有一定的相似或者搭配的关系，因此，我们需要从<user, trigger, item>三个实体粒度来构建样本，这里的trigger指的就是商品详情页的主商品。相应地，在构建特征时，也需要构建三个维度的特征。</user,></p>
+<p>最终，我们构建的样本格式为： <is_pay, is_click, user_id, trigger_id, item_id, context_features>。其中，is_pay, is_click为需要模型学习的target；context_features为上下文特征，包括用户的地理位置、使用的设备、行为时间等信息。</is_pay,></p>
+<h2 id="3-特征工程"><a href="#3-特征工程" class="headerlink" title="3. 特征工程"></a>3. 特征工程</h2><p>通常排序模型的特征由三部分构成：</p>
+<ol>
+<li>用户侧特征：包括用户画像信息、用户粒度统计信息（过于一段时间窗口内用户各种行为的统计值）、用户偏好信息（用户-物品或用户-物品属性粒度的交叉统计信息）</li>
+<li>物品侧特征：物品基础内容信息、物品粒度的统计信息、物品偏好信息（物品-用户画像、物品-人群画像粒度的统计信息）</li>
+<li>上下文特征：地理位置、访问设备、天气、时间、是否节假日等</li>
+</ol>
+<p>在商品详情页这样的场景下，我们还需要加入主商品维度的特征，具体如下：</p>
+<ol>
+<li>Trigger侧特征：trigger-item 交叉统计特征； trigger的属性与item的属性交叉统计特征；</li>
+</ol>
+<p>上文提到了很多统计特征，这里详细说明下具体是如何统计的，得到一个统计量一般需要考虑如下几个维度：</p>
+<ul>
+<li>统计对象：包括user、item、<user, item>、<trigger, item>、<user, properties of item>、<trigger, properties of item>、<user profile，item>、<properties of trigger, properties item> 等；</properties></user></trigger,></user,></trigger,></user,></li>
+<li>统计窗口：最近1天、3天、7天、14天、30天等；</li>
+<li>行为类型：曝光、点击、收藏、加购、购买等</li>
+<li>统计量：绝对值、排名、比率（点击率、加购率等）、加权和等</li>
+</ul>
+<p>一般从上面几个维度组合来考虑如何生成统计特征不容易有遗漏。</p>
+<p>对应数值型的特征，我们一般还需要做离散化或者标准化。离散化包括：等频分箱、等宽分箱、自适应分箱（类似决策树寻找特征分裂点的做法）。标准化方法包括：z-score、min-max等。</p>
+<h2 id="4-模型开发"><a href="#4-模型开发" class="headerlink" title="4. 模型开发"></a>4. 模型开发</h2><p>模型开发部分没什么好说的，按照论文内容基于某种深度学习框架，比如tensorflow、pytorch等，开发出模型即可。当然，与其自己开发，不如先找找有没有开源的模型可用，这里推荐阿里云机器学习PAI团队开源的推荐算法训练框架 <a target="_blank" rel="noopener" href="https://github.com/alibaba/EasyRec">EasyRec</a>。</p>
+<p>简单介绍一下EasyRec推荐算法框架。基于EasyRec框架用户可直接用自己的数据训练内置的算法模型，也可以自定义新的算法模型。目前，已经内置了多个排序模型，如 DeepFM / MultiTower / Deep Interest Network / DSSM / DCN / WDL 等，以及 DBMTL / MMoE / ESMM / PLE 等多目标模型。另外，EasyRec兼容odps/oss/hdfs等多种输入，支持多种类型的特征，损失函数，优化器及评估指标，支持大规模并行训练。使用EasyRec，只需要配置config文件，通过命令调用的方式就可以实现训练、评估、导出、推理等功能，无需进行代码开发，帮您快速搭建推广搜算法。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/783a9da64be4a587a20b5b9b4f91f05b.png" alt></p>
+<p>相比NLP和CV领域的模型，推荐模型的特定是输入的field特别多，可能有几百个，并且各个field的类型和语义也各不相同，需要不同的处理，比如，有的field当成原始特征值使用，有的field需要转embedding之后再接入model，因此，对输入数据的处理通常是开发推荐模型时需要很多重复劳动、易出错、又没有多少技术含量的部分，这让算法工程师头疼不已。EasyRec工具对输入特征的处理进行了自动化，只需要简单的配置即可省去很多重复性劳动。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文概要讲述了多任务学习的定义、动机和一般方法，概要介绍了目前主流的几种多目标排序模型。并结合电商平台商品详情页的业务场景具体介绍了如何构建样本，如何做特征工程。并且推荐基于开源的面向工业界的EasyRec推荐算法训练框架来构建做算法的训练和评估。至于模型服务的部署，每家公司的平台各不相同，就不详细介绍了。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%A4%9A%E4%BB%BB%E5%8A%A1%E5%AD%A6%E4%B9%A0/" rel="tag"># 多任务学习</a>
+              <a href="/tags/Multi-Task-Learning/" rel="tag"># Multi Task Learning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/rec-sys-on-aliyun/" rel="prev" title="使用阿里云平台从0到1搭建推荐系统">
+      <i class="fa fa-chevron-left"></i> 使用阿里云平台从0到1搭建推荐系统
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/dropoutnet/" rel="next" title="冷启动推荐模型DropoutNet深度解析与改进">
+      冷启动推荐模型DropoutNet深度解析与改进 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%A8%A1%E5%9E%8B%E9%80%89%E6%8B%A9"><span class="nav-number">1.</span> <span class="nav-text">1. 模型选择</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E2%91%A0-NavieMultiTask"><span class="nav-number">1.1.</span> <span class="nav-text">① NavieMultiTask</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E2%91%A1-ESMM"><span class="nav-number">1.2.</span> <span class="nav-text">② ESMM</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E2%91%A2-MMoE"><span class="nav-number">1.3.</span> <span class="nav-text">③ MMoE</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E2%91%A3-PLE"><span class="nav-number">1.4.</span> <span class="nav-text">④ PLE</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-CGC%E7%BD%91%E7%BB%9C"><span class="nav-number">1.4.1.</span> <span class="nav-text">1. CGC网络</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-PLE%E7%BD%91%E7%BB%9C"><span class="nav-number">1.4.2.</span> <span class="nav-text">2. PLE网络</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0%E7%9A%84%E8%AE%BE%E8%AE%A1"><span class="nav-number">1.4.3.</span> <span class="nav-text">3. 损失函数的设计</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E2%91%A4-DBMTL"><span class="nav-number">1.5.</span> <span class="nav-text">⑤ DBMTL</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%A0%B7%E6%9C%AC%E6%9E%84%E5%BB%BA"><span class="nav-number">2.</span> <span class="nav-text">2. 样本构建</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E7%89%B9%E5%BE%81%E5%B7%A5%E7%A8%8B"><span class="nav-number">3.</span> <span class="nav-text">3. 特征工程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E6%A8%A1%E5%9E%8B%E5%BC%80%E5%8F%91"><span class="nav-number">4.</span> <span class="nav-text">4. 模型开发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">55</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.linkedin.com/in/%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169/" title="LinkedIn → https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169&#x2F;" rel="noopener" target="_blank"><i class="fab fa-linkedin fa-fw"></i>LinkedIn</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fa fa-book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fa fa-blog fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab fa-blogger fa-fw"></i>博客园</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://yang_xu_dong.gitee.io/" title="https:&#x2F;&#x2F;yang_xu_dong.gitee.io" rel="noopener" target="_blank">国内镜像</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">334k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">5:03</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

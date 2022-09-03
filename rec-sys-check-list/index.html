@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="有时候我们会遇到推荐算法上线之后，效果不如预期的情况。这种情况下，该如何改进呢？ 下面就尝试列出一些检查清单，按照重要性的顺序，建议从上往下依次检查。当然，这些清单还不全面，欢迎大家一起来补充！ 1. 用来统计效果指标的行为日志是否正确 [ ] 是否准确、完整地收集了影响统计指标的行为日志？ [ ] 埋点是否正确、完整？新的埋点逻辑是否有足够覆盖率的APP的版本更新？  错误Case:  之前有一">
+<meta property="og:type" content="article">
+<meta property="og:title" content="推荐算法效果不佳时的检查清单">
+<meta property="og:url" content="http://xudongyang.coding.me/rec-sys-check-list/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="有时候我们会遇到推荐算法上线之后，效果不如预期的情况。这种情况下，该如何改进呢？ 下面就尝试列出一些检查清单，按照重要性的顺序，建议从上往下依次检查。当然，这些清单还不全面，欢迎大家一起来补充！ 1. 用来统计效果指标的行为日志是否正确 [ ] 是否准确、完整地收集了影响统计指标的行为日志？ [ ] 埋点是否正确、完整？新的埋点逻辑是否有足够覆盖率的APP的版本更新？  错误Case:  之前有一">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-03-11T14:42:34.000Z">
+<meta property="article:modified_time" content="2022-09-03T14:45:26.687Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="推荐算法">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://xudongyang.coding.me/rec-sys-check-list/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>推荐算法效果不佳时的检查清单 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-essays">
+
+    <a href="/categories/essays/" rel="section"><i class="fa fa-leaf fa-fw"></i>软技能</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/rec-sys-check-list/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          推荐算法效果不佳时的检查清单
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-03-11 22:42:34" itemprop="dateCreated datePublished" datetime="2022-03-11T22:42:34+08:00">2022-03-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-03 22:45:26" itemprop="dateModified" datetime="2022-09-03T22:45:26+08:00">2022-09-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/rec-sys-check-list/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/rec-sys-check-list/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>有时候我们会遇到推荐算法上线之后，效果不如预期的情况。这种情况下，该如何改进呢？</p>
+<p>下面就尝试列出一些检查清单，按照重要性的顺序，建议从上往下依次检查。当然，这些清单还不全面，欢迎大家一起来补充！</p>
+<h2 id="1-用来统计效果指标的行为日志是否正确"><a href="#1-用来统计效果指标的行为日志是否正确" class="headerlink" title="1. 用来统计效果指标的行为日志是否正确"></a>1. 用来统计效果指标的行为日志是否正确</h2><ul>
+<li>[ ] 是否准确、完整地收集了影响统计指标的行为日志？</li>
+<li>[ ] 埋点是否正确、完整？新的埋点逻辑是否有足够覆盖率的APP的版本更新？</li>
+</ul>
+<p><strong>错误Case</strong>:</p>
+<ul>
+<li>之前有一个客户把实验桶标识存储在Web页面的cookie里，在不同推荐场景的页面之间跳转时，收集到日志服务器的实验桶标识发生了错乱。</li>
+<li>还是这个客户，只在当前推荐场景的第一页收集了实验埋点，从推荐结果的第二页开始就没有收集埋点信息，导致效果统计时第二页之后的流量都算到基准桶里了。</li>
+<li>当推荐服务超时或异常时，APP端会出一个兜底的默认推荐列表；这个时候实验桶标记既不应该记录为算法桶标记，也不应该记录为基准桶标记，而应该记录为一个特殊的’other’标记，否则在统计效果的时候就会发现有些用户既存在于算法桶内又存在于基准桶内的矛盾。</li>
+</ul>
+<h2 id="2-流量切分是否稳定、随机和足量"><a href="#2-流量切分是否稳定、随机和足量" class="headerlink" title="2. 流量切分是否稳定、随机和足量"></a>2. 流量切分是否稳定、随机和足量</h2><ul>
+<li>[ ] 流量切分是否是稳定的，即同一个用户在实验期间是否只能落在同一个桶内？</li>
+<li>[ ] 流量切分是否足够随机，会不会存在某些行为异常的用户集中在同一个桶内？对调实验桶的用户集合是否能够观察到对应的效果指标的翻转？</li>
+<li>[ ] AA测试的效果是否是比较接近的？当链路上出现系统性错误时，通常会通知AA测试的效果差异很大。</li>
+<li><p>[ ] 在统计周期内，实验桶的流量是否足够得出置信的统计结果？这里推荐一个流量多少（样本数量）与指标置信度之间换算的计算器：<a target="_blank" rel="noopener" href="https://www.evanmiller.org/ab-testing/sample-size.html">https://www.evanmiller.org/ab-testing/sample-size.html</a>。如果实验桶流量不够，则需要拉长统计周期。</p>
+<a id="more"></a>
+<p><strong>错误Case</strong>:</p>
+</li>
+<li><p>一些小流量的推荐场景，按天为周期统计指标得到的结论是不可靠的，应根据流量情况适当拉长统计周期；以短周期的效果指标做决策是有风险的。</p>
+</li>
+</ul>
+<h2 id="3-统计效果指标的代码是否正确"><a href="#3-统计效果指标的代码是否正确" class="headerlink" title="3. 统计效果指标的代码是否正确"></a>3. 统计效果指标的代码是否正确</h2><ul>
+<li>[ ] 是否筛选了目标场景的日志，过滤掉了无关日志和噪音数据？</li>
+<li>[ ] 统计代码实现是否正确？如何处理低版本的APP流量收集不到正确埋点数据的问题？</li>
+<li>[ ] 各实验桶的流量统计结果占比是否和流量切分的比例大致相同？</li>
+</ul>
+<p><strong>错误Case</strong>:</p>
+<ul>
+<li>统计到的流量切分比例跟实际的切分比例不一致的情况，还是经常出现的。很可能是流量切分的逻辑不合理，或者日志回流的链路上存在问题。</li>
+</ul>
+<h2 id="4-实验变量控制是否正确"><a href="#4-实验变量控制是否正确" class="headerlink" title="4. 实验变量控制是否正确"></a>4. 实验变量控制是否正确</h2><ul>
+<li>[ ] 基准桶和实验桶是否做到了只有观察变量（比如推荐策略）的不同，而其他方面完全相同？</li>
+<li>[ ] 扩展上一个问题：基准桶和实验桶的推荐候选集是完全一样的吗？</li>
+<li>[ ] 扩展上一个问题：基准桶和实验桶的推荐候选集是否存在更新步调不一致的问题？</li>
+<li>[ ] 扩展上一个问题：基准桶和实验桶的候选集过滤规则（在工程链路的实现上）是完全一样的吗？</li>
+</ul>
+<p><strong>错误Case</strong>:</p>
+<ul>
+<li>基准桶和实验桶的推荐候选集不一致，是推荐系统刚上线时经常遇到的问题</li>
+</ul>
+<h2 id="5-工程链路是否正确，是否能做到持续正确"><a href="#5-工程链路是否正确，是否能做到持续正确" class="headerlink" title="5. 工程链路是否正确，是否能做到持续正确"></a>5. 工程链路是否正确，是否能做到持续正确</h2><ul>
+<li>[ ] 推荐服务的逻辑实现是否正确？有bug么？如何验证？</li>
+<li>[ ] 推荐服务调用的子系统（如，模型服务、在线存储、实时计算等）是否正确响应？是否存在问题？</li>
+<li>[ ] 依赖的各种离线、近线、实时数据更新是否正常？更新的数据是否正确？</li>
+<li>[ ] 推荐服务的性能是否足够，会不会存在高峰期服务不能正常响应的问题？</li>
+<li>[ ] 推荐服务的日志中有错误Log么？这些错误Log会影响推荐效果指标么？子系统有错误Log么？</li>
+<li>[ ] 上面这些因素是否会随时间发生变化？</li>
+<li>[ ] 系统上的各类指标（性能、cpu、内存、数据量、效果指标等）有监控和报警机制么？</li>
+</ul>
+<h2 id="6-算法模型有效么？并且持续有效么？"><a href="#6-算法模型有效么？并且持续有效么？" class="headerlink" title="6. 算法模型有效么？并且持续有效么？"></a>6. 算法模型有效么？并且持续有效么？</h2><ul>
+<li>[ ] 是否存在特征数据穿透的问题？</li>
+<li>[ ] 是否考虑了各种系统偏差？如数据循环、信息茧房的问题。</li>
+<li>[ ] 召回模型是否做了负样本采样？</li>
+<li>[ ] 模型是否做了离线效果指标的验证？验证数据集合理么（是否独立于训练集）？是否存在欠拟合、过拟合？</li>
+<li>[ ] 新模型上线是否做了A/B测试，并在验证效果ok后才推广到全流量？</li>
+<li>[ ] 离线、在线的特征工程的结果是否一致？有验证么？</li>
+<li>[ ] 模型离线预测结果与在线预测结果是否一致？</li>
+<li>[ ] 模型如何平衡多个目标，是否存在跷跷板现象？</li>
+<li>[ ] 特征和模型是否及时更新？随着时间的推移，用户群体、用户行为偏好、物品集的分布都会发生变化，特征和模型如果不及时更新效果就会慢慢衰减。特征上，要注意做数值特征的离散化时的分箱边界（boundary）是否更新了，等等诸如此类的问题。</li>
+</ul>
+<h2 id="7-推荐策略是否有瑕疵？"><a href="#7-推荐策略是否有瑕疵？" class="headerlink" title="7. 推荐策略是否有瑕疵？"></a>7. 推荐策略是否有瑕疵？</h2><ul>
+<li>[ ] 召回结果的多样性是否足够？</li>
+<li>[ ] 召回结果的覆盖率是否足够？是否考虑了冷启动的用户和物品？</li>
+<li>[ ] 召回结果的截断方法是否合理，是否破坏了多样性、覆盖率、探索机制、冷启动策略等？</li>
+<li>[ ] 如有粗排模型，粗排模型的作用范围是否合理？是否破坏了多样性、覆盖率、探索机制、冷启动策略等？</li>
+<li>[ ] 精排之后是否有满足业务期望的重排策略？比如，多样性打散算法或规则？</li>
+</ul>
+<h2 id="8-是否考虑了推荐策略对业务长期受益的影响？"><a href="#8-是否考虑了推荐策略对业务长期受益的影响？" class="headerlink" title="8. 是否考虑了推荐策略对业务长期受益的影响？"></a>8. 是否考虑了推荐策略对业务长期受益的影响？</h2><ul>
+<li>[ ] 用户、物品的冷启动问题有考虑并建模么？</li>
+<li>[ ] 是否平衡了Exploration &amp; Exploitation的问题？</li>
+<li>[ ] 是否有必要对特定候选集物品做流量调控？</li>
+<li>[ ] 推荐策略是否照顾到了各方利益（用户、内容提供者、平台、广告商等）</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E7%AE%97%E6%B3%95/" rel="tag"># 推荐算法</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/dropoutnet/" rel="prev" title="冷启动推荐模型DropoutNet深度解析与改进">
+      <i class="fa fa-chevron-left"></i> 冷启动推荐模型DropoutNet深度解析与改进
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/xgboost/" rel="next" title="全网最浅显易懂的GBDT(xgboost)算法原理深入剖析">
+      全网最浅显易懂的GBDT(xgboost)算法原理深入剖析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E7%94%A8%E6%9D%A5%E7%BB%9F%E8%AE%A1%E6%95%88%E6%9E%9C%E6%8C%87%E6%A0%87%E7%9A%84%E8%A1%8C%E4%B8%BA%E6%97%A5%E5%BF%97%E6%98%AF%E5%90%A6%E6%AD%A3%E7%A1%AE"><span class="nav-number">1.</span> <span class="nav-text">1. 用来统计效果指标的行为日志是否正确</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%B5%81%E9%87%8F%E5%88%87%E5%88%86%E6%98%AF%E5%90%A6%E7%A8%B3%E5%AE%9A%E3%80%81%E9%9A%8F%E6%9C%BA%E5%92%8C%E8%B6%B3%E9%87%8F"><span class="nav-number">2.</span> <span class="nav-text">2. 流量切分是否稳定、随机和足量</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E7%BB%9F%E8%AE%A1%E6%95%88%E6%9E%9C%E6%8C%87%E6%A0%87%E7%9A%84%E4%BB%A3%E7%A0%81%E6%98%AF%E5%90%A6%E6%AD%A3%E7%A1%AE"><span class="nav-number">3.</span> <span class="nav-text">3. 统计效果指标的代码是否正确</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E5%AE%9E%E9%AA%8C%E5%8F%98%E9%87%8F%E6%8E%A7%E5%88%B6%E6%98%AF%E5%90%A6%E6%AD%A3%E7%A1%AE"><span class="nav-number">4.</span> <span class="nav-text">4. 实验变量控制是否正确</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E5%B7%A5%E7%A8%8B%E9%93%BE%E8%B7%AF%E6%98%AF%E5%90%A6%E6%AD%A3%E7%A1%AE%EF%BC%8C%E6%98%AF%E5%90%A6%E8%83%BD%E5%81%9A%E5%88%B0%E6%8C%81%E7%BB%AD%E6%AD%A3%E7%A1%AE"><span class="nav-number">5.</span> <span class="nav-text">5. 工程链路是否正确，是否能做到持续正确</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E7%AE%97%E6%B3%95%E6%A8%A1%E5%9E%8B%E6%9C%89%E6%95%88%E4%B9%88%EF%BC%9F%E5%B9%B6%E4%B8%94%E6%8C%81%E7%BB%AD%E6%9C%89%E6%95%88%E4%B9%88%EF%BC%9F"><span class="nav-number">6.</span> <span class="nav-text">6. 算法模型有效么？并且持续有效么？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E6%8E%A8%E8%8D%90%E7%AD%96%E7%95%A5%E6%98%AF%E5%90%A6%E6%9C%89%E7%91%95%E7%96%B5%EF%BC%9F"><span class="nav-number">7.</span> <span class="nav-text">7. 推荐策略是否有瑕疵？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-%E6%98%AF%E5%90%A6%E8%80%83%E8%99%91%E4%BA%86%E6%8E%A8%E8%8D%90%E7%AD%96%E7%95%A5%E5%AF%B9%E4%B8%9A%E5%8A%A1%E9%95%BF%E6%9C%9F%E5%8F%97%E7%9B%8A%E7%9A%84%E5%BD%B1%E5%93%8D%EF%BC%9F"><span class="nav-number">8.</span> <span class="nav-text">8. 是否考虑了推荐策略对业务长期受益的影响？</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">55</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.linkedin.com/in/%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169/" title="LinkedIn → https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169&#x2F;" rel="noopener" target="_blank"><i class="fab fa-linkedin fa-fw"></i>LinkedIn</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fa fa-book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fa fa-blog fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab fa-blogger fa-fw"></i>博客园</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://yang_xu_dong.gitee.io/" title="https:&#x2F;&#x2F;yang_xu_dong.gitee.io" rel="noopener" target="_blank">国内镜像</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">334k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">5:03</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

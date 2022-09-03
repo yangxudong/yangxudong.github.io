@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="推荐系统已经成为互联网应用提升点击率、转化率、留存率和用户体验的必备手段，然而，随着流量和数据量的爆发式增长，以及企业竞争环境日新月异的变化，快速搭建一套易用、精准、可灵活扩展的个性化推荐系统已成为每一家互联网企业必备的生存技能。 推荐系统一方面需要能够及时处理海量的用户行为日志，从中挖掘出用户的画像信息及行为偏好；另一方面又要对海量的物料数据（推荐候选集）进行精准的分析，预测每个候选物料未来一段">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用阿里云平台从0到1搭建推荐系统">
+<meta property="og:url" content="http://xudongyang.coding.me/rec-sys-on-aliyun/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="推荐系统已经成为互联网应用提升点击率、转化率、留存率和用户体验的必备手段，然而，随着流量和数据量的爆发式增长，以及企业竞争环境日新月异的变化，快速搭建一套易用、精准、可灵活扩展的个性化推荐系统已成为每一家互联网企业必备的生存技能。 推荐系统一方面需要能够及时处理海量的用户行为日志，从中挖掘出用户的画像信息及行为偏好；另一方面又要对海量的物料数据（推荐候选集）进行精准的分析，预测每个候选物料未来一段">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_pipeline.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_modules.png">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-a9f64323e679a2b53ce588d71253a2e5_r.jpg">
+<meta property="og:image" content="https://pic2.zhimg.com/v2-81cc114eeda63f753d34eaee32231499_r.jpg">
+<meta property="og:image" content="http://pai-vision-data-hz.oss-cn-zhangjiakou.aliyuncs.com/pairec/docs/pairec/html/_images/framework.jpg">
+<meta property="og:image" content="http://pai-vision-data-hz.oss-cn-zhangjiakou.aliyuncs.com/pairec/docs/pairec/html/_images/pairec_func.jpg">
+<meta property="article:published_time" content="2021-12-03T03:17:37.000Z">
+<meta property="article:modified_time" content="2022-09-03T05:32:22.702Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="推荐算法">
+<meta property="article:tag" content="推荐系统">
+<meta property="article:tag" content="推荐工程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_pipeline.png">
+
+<link rel="canonical" href="http://xudongyang.coding.me/rec-sys-on-aliyun/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>使用阿里云平台从0到1搭建推荐系统 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-essays">
+
+    <a href="/categories/essays/" rel="section"><i class="fa fa-leaf fa-fw"></i>软技能</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/rec-sys-on-aliyun/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          使用阿里云平台从0到1搭建推荐系统
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-12-03 11:17:37" itemprop="dateCreated datePublished" datetime="2021-12-03T11:17:37+08:00">2021-12-03</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-03 13:32:22" itemprop="dateModified" datetime="2022-09-03T13:32:22+08:00">2022-09-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/rec-sys-on-aliyun/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/rec-sys-on-aliyun/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>9.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>9 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>推荐系统已经成为互联网应用提升点击率、转化率、留存率和用户体验的必备手段，然而，随着流量和数据量的爆发式增长，以及企业竞争环境日新月异的变化，快速搭建一套易用、精准、可灵活扩展的个性化推荐系统已成为每一家互联网企业必备的生存技能。</p>
+<p>推荐系统一方面需要能够及时处理海量的用户行为日志，从中挖掘出用户的画像信息及行为偏好；另一方面又要对海量的物料数据（推荐候选集）进行精准的分析，预测每个候选物料未来一段时间内的转化概率；同时还需要对推荐的上下文进行分析，精准预测出在应该在什么时间、什么地点、给什么用户推荐什么内容。推荐内容的精准度、时效性、多样性、短长期受益平衡等各方面都对推荐系统提出了很高的要求。从零开始搭建一套合格的推荐系统绝非易事。所幸，随着云计算平台的兴起，搭建推荐系统所需要的各种基础技术、工具、产品和平台越来越成熟，相信搭建云上的智能推荐系统对中小企业来说是一个比较好的选择。</p>
+<p>本文主要介绍如何基于阿里云平台，从0到1搭建一套高效、精准、易用、可扩展的智能推荐系统。<br><a id="more"></a></p>
+<h2 id="1-系统架构"><a href="#1-系统架构" class="headerlink" title="1 系统架构"></a>1 系统架构</h2><p>粗略来看，推荐算法可以简单地分为召回和排序两个阶段。召回模块负责从海量的物品库里挑选出用户可能感兴趣的物品子集，通常返回几百个物品。排序模块负责对召回阶段返回的物品集个性化排序，通常返回几十个物品组成的有序列表。总结起来，召回和排序有如下特点：</p>
+<ul>
+<li>召回层：候选集规模大、模型和特征简单、速度快，尽量保证用户感兴趣数据多召回。</li>
+<li>排序层：候选集不大，目标是保证排序的精准，一般使用复杂和模型和特征。</li>
+</ul>
+<p>在实际的生成环境中部署推荐系统时，当物品库很大时，召回模块的返回结果可能是在万的量级，一般会把上述排序模块拆分成粗排、精排、重排三个模块，粗排模块使用简单的机器学习模型进一步过滤掉部分候选物品，保证进入精排的物品量级在一千以下，精排模块使用较复杂的模型给每个候选物品计算一个排序分。排序分一般以业务指标为拟合目标，比如在电商场景可能会用CTR预估值，或者CTR <em> CVR </em> price以便最大化GMV。重排模块一般实现一些list-wise的页面级排序，或是打散等多样性业务规则。</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_pipeline.png" alt="rec_pipeline"></p>
+<p>召回模块一般采用多路召回的策略，从不同的角度构建用户与候选商品之间的连接，并度量该连接的强弱程度。召回模块的结果即为用户可能感兴趣的商品集合。召回的算法有很多，这里举例如下：</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_modules.png" alt="rec_modules"></p>
+<p>不管使用哪一种召回方法，都需要大数据计算平台和分布式数据库的支持。推荐系统中，召回阶段的要求是能够低延时地从大量的候选集找筛选出用户可能感兴趣的物品。大规模、低延时是召回阶段面临的两大挑战；解决方案就是建立倒排索引，使用<strong>分布式数据存储引擎</strong>存储<strong>索引数据</strong>，而索引数据的生成则交给大数据计算平台（如<a target="_blank" rel="noopener" href="https://help.aliyun.com/product/27797.html">MaxCompute</a>、<a target="_blank" rel="noopener" href="https://help.aliyun.com/product/28066.html">EMR</a>等）负责。</p>
+<p>通常有两种类型的索引：</p>
+<ul>
+<li>key-value 索引：根据指定的key实现快速的点查</li>
+<li>向量索引：向量引擎可以快速返回与query向量的top N邻近向量集合</li>
+</ul>
+<p>阿里云交互式分析产品<a target="_blank" rel="noopener" href="https://help.aliyun.com/product/113622.html">Hologres</a>是集 <strong>key/value 点查、向量匹配引擎、关系式数据库</strong> 与一体的分布式数据存储和分析引擎，非常适合在推荐系统中存储召回阶段的索引数据及排序阶段的特征数据。Hologres兼容PostgreSQL协议，与大数据生态无缝连接，支持高并发和低延时地查询分析万亿级数据。在推荐系统中使用Hologres至少有以下两点好处：</p>
+<ol>
+<li>统一的查询语言实现点查、向量匹配、条件过滤等功能，较少推荐系统需要对接的下级工具产品，降低开发工作量。</li>
+<li>可以轻松实现计算下沉，例如查询和过滤可以在同一个查询里实现，减少推荐引擎与数据存储系统之间的交互次数。</li>
+</ol>
+<p>排序阶段的主要目标是调用算法模型对召回结果的每个物品计算一个或多个目标分数，并拟合成一个最终的排序分，最后推荐系统根据排序分取top N个商品返回给请求方。这个阶段涉及的工作包括：样本构建、特征工程、模型训练、模型评估、模型部署。每个子阶段，阿里云计算平台事业部PAI团队都提供了相应的工具，可以提高工作效率，减少出错的概率，下文将详细介绍。</p>
+<p>准备好了召回阶段需要的索引数据、排序阶段需要的特征数据和算法模型，最后还需要一个推荐服务串起整个流程。基于PAI团队提供的<a target="_blank" rel="noopener" href="http://pai-vision-data-hz.oss-cn-zhangjiakou.aliyuncs.com/pairec/docs/pairec/html/intro/intro.html">PaiRec推荐引擎</a>，用户可以轻松搭建一个完整的推荐服务。一个完整的推荐系统，通常需要在线测试不同的推荐策略和算法，少不了A/B测试框架的帮助。<a target="_blank" rel="noopener" href="http://pai-vision-data-hz.oss-cn-zhangjiakou.aliyuncs.com/pairec/docs/pairec/html/ab/intro.html">PAI-ABTest</a>平台是独立于PaiRec推荐引擎的A/B测试平台，支持横向、纵向切流和分层实验，是推荐系统必不可少的重要组成部分。</p>
+<p>实时特征/模型对应提升推荐算法的效果有很大的帮助，基于<a target="_blank" rel="noopener" href="https://help.aliyun.com/product/28958.html">阿里日志服务</a>和阿里云全托管的<a target="_blank" rel="noopener" href="https://help.aliyun.com/product/45029.html">Flink实时计算</a>平台，可以轻松为推荐系统提高实时响应能力。</p>
+<p>通常，常规的召回、粗排、精排算法对新物品、新用户都不太友好，新物品很大程度上，会被模型“低估”，因此有必要在推荐系统中显式地处理<strong>冷启动</strong>问题。冷启动问题处理不好会影响内容创造者的积极性，进而影响平台生态的健康发展。Pai团队提供了基于<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/35753281">contextual bandit算法</a>的物品<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/355882527">冷启动产品化方案</a>，需要部署冷启动算法的客户可联系我们。</p>
+<p>一个可行的基于阿里云产品搭建的<a target="_blank" rel="noopener" href="https://developer.aliyun.com/article/783463" title="基于PAI和Hologres的个性化推荐最佳实践">云上个性化推荐</a>系统架构如下图所示：</p>
+<p><img src="https://pic2.zhimg.com/v2-a9f64323e679a2b53ce588d71253a2e5_r.jpg" alt></p>
+<h2 id="2-召回"><a href="#2-召回" class="headerlink" title="2 召回"></a>2 召回</h2><h3 id="2-1-协同过滤"><a href="#2-1-协同过滤" class="headerlink" title="2.1 协同过滤"></a>2.1 协同过滤</h3><p>协同过滤算法是完全基于用户交互行为的召回算法，分为User Based CF（为当前用户推荐相似用户喜欢的物品）和Item Based CF（为当前用户推荐该用户曾经喜欢过的物品的相似物品）两大类。具体选择哪一种，需要依据业务场景的特定来定，通常，因为用户兴趣的多样性和易变性，UserCF在实际中使用较少，多数推荐系统会优先选择ItemCF算法。</p>
+<p>要使用协同过滤算法，首先需要构建用户和物品的交互行为矩阵，比如在电商场景，主要使用用户的隐式反馈数据来构建行为矩阵，比如使用点击、收藏、购买等行为数据构建User-Item行为矩阵。行为矩阵是很稀疏的，大多数元素都是空缺的，表示对于的用户和商品之间没有产生交互行为。<strong>协同过滤算法本质上就是使用User-Item行为矩阵中已有的值作为输入构建模型来填充对空缺值的预估</strong>。有了预估值之后，就可以对某用户推荐得分比较高的预估值对应的商品列表了。</p>
+<p>交互行为矩阵的原始数据通常来自于平台记录的行为日志。行为日志一般有前端上报到日志服务器，最终导入到大数据处理平台，形成行为日志表，该数据是推荐算法的重要输入之一。在阿里云PAI平台上可用的协同过滤算法包括：etrec、swing、simrank等。这些算法通过不同的公式计算物品与物品（或者用户与用户）之间的相似性，最终构建出每个物品的相似物品及相似分列表，这就是协同过滤算法召回用的索引数据。</p>
+<p>PAI-Studio支持通过可视化或PAI命令的方式，配置使用协同过滤算法。以<a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/172063.html">etrec算法</a>为例，pai命令的调用方式如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">PAI -name pai_etrec</span><br><span class="line">    -project algo_public</span><br><span class="line">    -DsimilarityType&#x3D;&quot;wbcosine&quot;</span><br><span class="line">    -Dweight&#x3D;&quot;1&quot;</span><br><span class="line">    -DminUserBehavior&#x3D;&quot;2&quot;</span><br><span class="line">    -Dlifecycle&#x3D;&quot;28&quot;</span><br><span class="line">    -DtopN&#x3D;&quot;2000&quot;</span><br><span class="line">    -Dalpha&#x3D;&quot;0.5&quot;</span><br><span class="line">    -DoutputTableName&#x3D;&quot;etrec_test_result&quot;</span><br><span class="line">    -DmaxUserBehavior&#x3D;&quot;500&quot;</span><br><span class="line">    -DinputTableName&#x3D;&quot;etrec_test_input&quot;</span><br><span class="line">    -Doperator&#x3D;&quot;add&quot;</span><br><span class="line">    -DuserColName&#x3D;&quot;user&quot;</span><br><span class="line">    -DitemColName&#x3D;&quot;item&quot;</span><br></pre></td></tr></table></figure>
+<p>swing算法的调用方式如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">PAI -name swing_rec_ext</span><br><span class="line">-project algo_public</span><br><span class="line">-DinputTable&#x3D;&#39;swing_test_input&#39;</span><br><span class="line">-DoutputTable&#x3D;&#39;swing_test_result&#39;</span><br><span class="line">-DmaxClickPerUser&#x3D;&#39;500&#39;</span><br><span class="line">-DmaxUserPerItem&#x3D;&#39;600&#39;</span><br><span class="line">-Dtopk&#x3D;&#39;100&#39;</span><br><span class="line">-Dalpha1&#x3D;&#39;5&#39;</span><br><span class="line">-Dalpha2&#x3D;&#39;1&#39;</span><br><span class="line">-Dbeta&#x3D;&#39;0.3&#39;</span><br></pre></td></tr></table></figure></p>
+<p>参考资料：<a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/58285.html">基于协同过滤的物品推荐</a></p>
+<h3 id="2-2-兴趣标签"><a href="#2-2-兴趣标签" class="headerlink" title="2.2 兴趣标签"></a>2.2 兴趣标签</h3><p>广义上来说，兴趣标签的召回是一种基于内容的召回。通常分为三个步骤：</p>
+<ol>
+<li>挖掘物品的内容标签；</li>
+<li>根据历史交互行为计算用户对各个内容标签是偏好程度；</li>
+<li>给目标用户推荐他偏好的内容标签下对应的热门物品。</li>
+</ol>
+<p>协同过滤通过相似性来构建目标用户与候选物品之间的桥梁，而兴趣标签的召回则是通过“标签”来架起目标用户与候选物品之间的桥梁。</p>
+<p>挖掘物品的标签通常需要NLP、图像、视频相关的算法，如中心词提取、短语挖掘等方法可以从文本信息中挖掘兴趣标签；图像/视频 打标算法则从图像和视频内容本身来预测兴趣标签。这些基础技术在阿里云平台上都有对应的工具。</p>
+<p>参考资料：<a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/58286.html">基于用户和物品画像的物品推荐</a></p>
+<h3 id="2-3-向量召回"><a href="#2-3-向量召回" class="headerlink" title="2.3 向量召回"></a>2.3 向量召回</h3><p>向量召回是一种基于模型的召回方法，首先我们需要训练一个深度学习模型，得到用户和物品的低维实数向量（通常叫做embedding向量），每个向量对应N维空间的一个点，这些点之间的距离越近表示对应的两个物体在现实世界中越相似。这样我们可以在N维空间中通过找到与当前目标用户的点最近的M个邻居，限定邻居的类型为候选物品，这样我们就可以召回top M个待推荐后续物品集合。</p>
+<p>双搭模型是学习embedding向量的常用方法。在Pai团队开源的推荐算法框架<a target="_blank" rel="noopener" href="https://github.com/alibaba/EasyRec">EasyRec</a>中，实现了两种常用的召回模型：DSSM和MIND，包括增强的随机负采样版本，可以开箱即用。顺便说一下，EasyRec致力于成为容易上手的工业界深度学习推荐算法框架，支持大规模训练、评估、导出和部署。EasyRec实现了业界领先的模型，包含排序、召回、多目标等模型，支持超参搜索，显著降低了建模的复杂度和工作量。想了解更多EasyRec的内容，可以查看<a target="_blank" rel="noopener" href="https://easyrec.readthedocs.io/en/latest/intro.html">EasyRec帮助文档</a>。</p>
+<p>有了embedding向量后，可以通过hologres构建向量索引，从而在推荐服务中快速检索出top K的推荐物品。Hologres深度集成了阿里达摩院自研的Proxima向量检索引擎，能够提供低延时、高吞吐的在线查询服务，其基于SQL查询接口，兼容PostgreSQL生态，简单易用，且支持带复杂过滤条件的检索；能够支持分布式构建向量索引、以及对索引进行检索，简单支持水平扩展。</p>
+<p>全量检索查询语法如下：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="keyword">id</span>, pm_approx_euclidean_distance(feature, <span class="string">&#x27;&#123;0.1,0.2,0.3&#125;&#x27;</span>)) <span class="keyword">as</span> distance</span><br><span class="line"><span class="keyword">from</span> feature_tb</span><br><span class="line"><span class="keyword">order</span> <span class="keyword">by</span> distance <span class="keyword">asc</span></span><br><span class="line"><span class="keyword">limit</span> <span class="number">10</span>;</span><br></pre></td></tr></table></figure></p>
+<p>复杂条件下检索查询语法如下：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="keyword">id</span>, pm_approx_euclidean_distance(feature, <span class="string">&#x27;&#123;0.1,0.2,0.3&#125;&#x27;</span>)) <span class="keyword">as</span> distance</span><br><span class="line"><span class="keyword">from</span> feature_tb</span><br><span class="line"><span class="keyword">where</span> data_time <span class="keyword">between</span> <span class="string">&#x27;1990-11-11 12:00:00&#x27;</span> <span class="keyword">and</span> <span class="string">&#x27;1990-11-11 13:00:00&#x27;</span></span><br><span class="line"><span class="keyword">and</span> tag <span class="keyword">in</span> (<span class="string">&#x27;X&#x27;</span>, <span class="string">&#x27;Y&#x27;</span>, <span class="string">&#x27;Z&#x27;</span>)</span><br><span class="line"><span class="keyword">order</span> <span class="keyword">by</span> distance <span class="keyword">asc</span></span><br><span class="line"><span class="keyword">limit</span> <span class="number">10</span>;</span><br></pre></td></tr></table></figure></p>
+<h3 id="2-4-热门召回"><a href="#2-4-热门召回" class="headerlink" title="2.4 热门召回"></a>2.4 热门召回</h3><p>热门召回通常是在前几种召回策略失效的情况下（通常针对冷启动用户前几种召回方法会失效），或者为了增加召回多样性，而采用的一种策略。</p>
+<p>我们可以统计候选物品在过去一段时间内的指标数据，比如商品销量，视频播放量，文章阅读量等来筛选出全局热门或针对某个人群热门的候选物品集，从而为这些用户或人群推荐对应的物品。然而，这种方式对新物品不友好，新上线的物品（如，短视频平台发布的内容）没有机会被曝光，从而影响内容创作者的积极性，以及平台生态的健康发展。因此，我们需要对一个对候选物品人气分预估的模型，来统一对新老物品进行预估，并且根据预估分（而不是简单的统计值）来确定热门物品。</p>
+<p>人气分模型可以基于GBDT算法来建模，由于GBDT算法能够很好地建模特征与目标直接的非线性关系，并且对特征工程的要求比较低，很容易实施。人气分模型的一个例子可参考《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/35512064">商品人气分模型</a>》。</p>
+<p><a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/58284.html">PAI平台</a>上可以使用ps_smart算法（GBDT算法的一种实现）来训练人气分模型，pai命令如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">PAI -name ps_smart</span><br><span class="line">    -project algo_public</span><br><span class="line">    -DmodelName&#x3D;&quot;product_popularity&quot;</span><br><span class="line">    -DinputTableName&#x3D;&quot;product_popularity_model_samples&quot;</span><br><span class="line">    -DinputTablePartitions&#x3D;&quot;ds&#x3D;$&#123;bizdate&#125;&quot;</span><br><span class="line">    -DoutputTableName&#x3D;&quot;product_popularity_model&quot;</span><br><span class="line">    -DoutputImportanceTableName&#x3D;&quot;product_popularity_feature_importance&quot;</span><br><span class="line">    -DlabelColName&#x3D;&quot;label&quot;</span><br><span class="line">    -DweightCol&#x3D;&quot;weight&quot;</span><br><span class="line">    -DfeatureColNames&#x3D;&quot;features&quot;</span><br><span class="line">    -DenableSparse&#x3D;&quot;true&quot;</span><br><span class="line">    -Dobjective&#x3D;&quot;binary:logistic&quot;</span><br><span class="line">    -Dmetric&#x3D;&quot;error&quot;</span><br><span class="line">    -DfeatureImportanceType&#x3D;&quot;gain&quot;</span><br><span class="line">    -DtreeCount&#x3D;&quot;100&quot;</span><br><span class="line">    -DmaxDepth&#x3D;&quot;5&quot;</span><br><span class="line">    -Dshrinkage&#x3D;&quot;0.3&quot;</span><br><span class="line">    -Dl2&#x3D;&quot;1.0&quot;</span><br><span class="line">    -Dl1&#x3D;&quot;0&quot;</span><br><span class="line">    -Dlifecycle&#x3D;&quot;3&quot;</span><br><span class="line">    -DsketchEps&#x3D;&quot;0.03&quot;</span><br><span class="line">    -DsampleRatio&#x3D;&quot;1.0&quot;</span><br><span class="line">    -DfeatureRatio&#x3D;&quot;1.0&quot;</span><br><span class="line">    -DbaseScore&#x3D;&quot;0.2&quot;</span><br><span class="line">    -DminSplitLoss&#x3D;&quot;0&quot;</span><br><span class="line">    -DfeatureNum&#x3D;@feaNum</span><br></pre></td></tr></table></figure></p>
+<p>可以在阿里云<a target="_blank" rel="noopener" href="https://help.aliyun.com/product/72772.html">DataWorks</a>开发工具上新建一个SQL节点，粘贴如上的命令即可执行。</p>
+<h2 id="3-排序"><a href="#3-排序" class="headerlink" title="3. 排序"></a>3. 排序</h2><h3 id="3-1-特征工程"><a href="#3-1-特征工程" class="headerlink" title="3.1 特征工程"></a>3.1 特征工程</h3><p>样本构建、特征加工通常是搭建推荐系统的过程中最耗时耗力的阶段，这个阶段工作量大，也容易出错。为此，阿里云PAI团队开发了一套<strong>推荐模板</strong>，可根据配置文件，由三大输入表（用户信息表、物品信息表、交互行为表）自动为客户生成一套初始的ETL SQL代码，完成了大部分召回、排序所需要的离线计算代码的生成。客户可基于该代码继续调整优化。</p>
+<p>通常排序模型的特征由三部分构成：</p>
+<ol>
+<li>用户侧特征：包括用户画像信息、用户粒度统计信息（过于一段时间窗口内用户各种行为的统计值）、用户偏好信息（用户-物品或用户-物品属性粒度的交叉统计信息）</li>
+<li>物品侧特征：物品基础内容信息、物品粒度的统计信息、物品偏好信息（物品-用户画像、物品-人群画像粒度的统计信息）</li>
+<li>上下文特征：地理位置、访问设备、天气、时间等</li>
+</ol>
+<p>有了上述三部分原始特征后，还需要对特征进行加工，生成最终模型可接受的格式的数据。由于模型加工的过程离线和在线服务都需要，因此，如果离线计算开发一套代码，在线服务又开发一套代码，不仅耗费精力，而且容易出错，造成离在线特征值不一致，从而影响模型的实际效果。因此，为保证离在线特征加工逻辑的一致性，我们用C++开发了一套feature generator的代码，供在线服务使用；同时，把同一份代码用jni封装后，在离线MapReduce任务中使用。</p>
+<p><a target="_blank" rel="noopener" href="https://easyrec.readthedocs.io/en/latest/feature/rtp_fg.html"><strong>Feature generator工具</strong></a>支持多种特征类型的加工，包括IdFeature、RawFeature、LookupFeature、ComboFeature、MatchFeature、SequenceFeature等，基本满足了日常所需。</p>
+<h3 id="3-2-模型训练"><a href="#3-2-模型训练" class="headerlink" title="3.2 模型训练"></a>3.2 模型训练</h3><p>Pai团队开源了开箱即用的推荐算法训练框架<a target="_blank" rel="noopener" href="https://github.com/alibaba/EasyRec">EasyRec</a>。用户可直接用自己的数据训练内置的算法模型，也可以自定义新的算法模型。目前，已经内置了多个排序模型，如 <code>DeepFM / MultiTower / Deep Interest Network / DSSM / DCN / WDL</code> 等，以及 <code>DBMTL / MMoE / ESMM / PLE</code> 等多目标模型。另外，EasyRec兼容odps/oss/hdfs等多种输入，支持多种类型的特征，损失函数，优化器及评估指标，支持大规模并行训练。使用EasyRec，只需要配置config文件，通过命令调用的方式就可以实现训练、评估、导出、推理等功能，无需进行代码开发，帮您快速搭建推广搜算法。</p>
+<p>相比NLP和CV领域的模型，推荐模型的特定是输入的field特别多，可能有几百个，并且各个field的类型和语义也各不相同，需要不同的处理，比如，有的field当成原始特征值使用，有的field需要转embedding之后再接入model，因此，对输入数据的处理通常是开发推荐模型时需要很多重复劳动、易出错、又没有多少技术含量的部分，这让算法工程师头疼不已。EasyRec工具对输入特征的处理进行了自动化，只需要简单的配置即可省去很多重复性劳动。</p>
+<p><img src="https://pic2.zhimg.com/v2-81cc114eeda63f753d34eaee32231499_r.jpg" alt></p>
+<p>在阿里云平台上《<a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/190477.html?spm=5176.21213303.J_6704733920.7.23cc3eda8fh2SD&amp;scm=20140722.S_help%40%40%E6%96%87%E6%A1%A3%40%40190477.S_0%2Bos0.ID_190477-RL_EasyRec-OR_helpmain-V_2-P0_0">使用EasyRec构建推荐模型</a>》请查看对应的文档。</p>
+<p>请查看<a target="_blank" rel="noopener" href="https://tbm-auth.alicdn.com/e99361edd833010b/Q57VLfLvNn4zxwBS07v/qBvGzEVAXL7YB8q172P_325898294308_hd_hq.mp4?auth_key=1634486506-0-0-68c2494ed8f6e55874442cadf41ece11">EasyRec使用教程视频</a>了解详细使用方法。更多资料请查看<a target="_blank" rel="noopener" href="https://www.aliyun.com/activity/bigdata/video?spm=a2c0j.14066474.J_2732893710.4.7b34426aAQhjoU" title="机器学习PAI视频内容">机器学习PAI视频内容</a>。</p>
+<h3 id="3-3-模型部署"><a href="#3-3-模型部署" class="headerlink" title="3.3 模型部署"></a>3.3 模型部署</h3><p>模型还需要部署成服务才能被推荐引擎调用。为实现一站式算法应用，PAI针对在线推理场景提供了在线预测服务<a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/113696.html">PAI-EAS（Elastic Algorithm Service）</a>，支持基于异构硬件（CPU和GPU）的模型加载和数据请求的实时响应。</p>
+<p>通过PAI-EAS，您可以将模型快速部署为RESTful API，再通过HTTP请求的方式调用该服务。PAI-EAS提供的弹性扩缩和蓝绿部署等功能，可以支撑您以较低的资源成本获取高并发且稳定的在线算法模型服务。同时，PAI-EAS还提供了资源组管理、版本控制及资源监控等功能，便于将模型服务应用于业务。</p>
+<p>为了让更多环境的开发者使用便捷的模型服务部署功能，PAI-EAS支持通过EASCMD方式完成服务部署的所有操作，详情请参见<a target="_blank" rel="noopener" href="https://help.aliyun.com/document_detail/111031.htm?spm=a2c4g.11186623.0.0.6d2c1af28c8Mxd#concept-1936147">命令使用说明</a>。举例如下：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">bizdate=<span class="variable">$1</span></span><br><span class="line"></span><br><span class="line">cat &lt;&lt; <span class="string">EOF &gt; eas_config_rank.json</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string"> &quot;name&quot;: &quot;dbmtl_rank_ml&quot;,</span></span><br><span class="line"><span class="string"> &quot;generate_token&quot;: &quot;true&quot;,</span></span><br><span class="line"><span class="string"> &quot;model_path&quot;: &quot;oss://algo/rec_dbmtl/$&#123;bizdate&#125;/export/best/&quot;,</span></span><br><span class="line"><span class="string"> &quot;processor&quot;: &quot;tensorflow_cpu&quot;,</span></span><br><span class="line"><span class="string"> &quot;oss_endpoint&quot;: &quot;oss-us-west-1.aliyuncs.com&quot;,</span></span><br><span class="line"><span class="string"> &quot;token&quot;: &quot;******&quot;,</span></span><br><span class="line"><span class="string"> &quot;metadata&quot;:&#123;</span></span><br><span class="line"><span class="string">    &quot;region&quot;: &quot;us-west-1&quot;,</span></span><br><span class="line"><span class="string">    &quot;instance&quot;: 2,</span></span><br><span class="line"><span class="string">    &quot;cpu&quot;: 8,</span></span><br><span class="line"><span class="string">    &quot;gpu&quot;: 0,</span></span><br><span class="line"><span class="string">    &quot;memory&quot;: 8000</span></span><br><span class="line"><span class="string"> &#125;</span></span><br><span class="line"><span class="string">&#125;</span></span><br><span class="line"><span class="string">EOF</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;-------------------eas_config_rank.json-------------------&quot;</span></span><br><span class="line">cat eas_config_rank.json</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建服务</span></span><br><span class="line">/home/admin/usertools/tools/eascmd -i <span class="variable">$&#123;access_id&#125;</span> -k <span class="variable">$&#123;access_key&#125;</span> \</span><br><span class="line"> -e pai-eas.<span class="variable">$&#123;region&#125;</span>.aliyuncs.com create eas_config_rank.json</span><br><span class="line"></span><br><span class="line"><span class="comment"># 更新服务</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;-------------------更新服务-------------------&quot;</span></span><br><span class="line">/home/admin/usertools/tools/eascmd -i <span class="variable">$&#123;access_id&#125;</span> -k <span class="variable">$&#123;access_key&#125;</span> \</span><br><span class="line">-e pai-eas.<span class="variable">$&#123;region&#125;</span>.aliyuncs.com \</span><br><span class="line">modify dbmtl_rank_ml -s eas_config_rank.json</span><br><span class="line"></span><br><span class="line">status=$?</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看服务</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;-------------------查看服务-------------------&quot;</span></span><br><span class="line">/home/admin/usertools/tools/eascmd -i <span class="variable">$&#123;access_id&#125;</span> -k <span class="variable">$&#123;access_key&#125;</span> \</span><br><span class="line">-e pai-eas.<span class="variable">$&#123;region&#125;</span>.aliyuncs.com desc dbmtl_rank_ml</span><br><span class="line"></span><br><span class="line"><span class="built_in">exit</span> <span class="variable">$&#123;status&#125;</span></span><br></pre></td></tr></table></figure></p>
+<h2 id="4-推荐服务"><a href="#4-推荐服务" class="headerlink" title="4. 推荐服务"></a>4. 推荐服务</h2><p>最后，还需要推荐服务串联起所有的环节，对外提供后续物品的内容推荐。<a target="_blank" rel="noopener" href="http://pai-vision-data-hz.oss-cn-zhangjiakou.aliyuncs.com/pairec/docs/pairec/html/intro/intro.html">PaiRec</a>是Pai团队研发的一款基于 go语言 的在线推荐服务引擎的框架，用户可以基于此框架快速搭建推荐在线服务，也能定制化进行二次开发。</p>
+<p>PAIRec框架 提供如下功能：</p>
+<ul>
+<li>集成 go http server, 提供路由注册功能，方便开发 Restful Api</li>
+<li>包含完成的推荐引擎的 pipeline 流程，里面预定义了多种召回、过滤，排序策略，内置访问阿里云 模型推理 EAS 服务</li>
+<li>包含多种数据源的加载，支持 hologres, mysql, redis, OTS, kafka 等</li>
+<li>基于灵活的配置描述推荐流程</li>
+<li>集成轻量级 A/B Test 实验平台</li>
+<li>支持简单易用的扩展点，方便自定义操作</li>
+</ul>
+<p>整体框架如下：<br><img src="http://pai-vision-data-hz.oss-cn-zhangjiakou.aliyuncs.com/pairec/docs/pairec/html/_images/framework.jpg" alt></p>
+<p>内置功能模块包括：<br><img src="http://pai-vision-data-hz.oss-cn-zhangjiakou.aliyuncs.com/pairec/docs/pairec/html/_images/pairec_func.jpg" alt></p>
+<p>基于PAIRec框架开发的推荐服务可以以自定义镜像容器的方式部署在PAI-EAS平台上，可以复用PAI-EAS平台的集群管理、监控、报警等基础功能，使用起来非常方便。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E7%AE%97%E6%B3%95/" rel="tag"># 推荐算法</a>
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" rel="tag"># 推荐系统</a>
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E5%B7%A5%E7%A8%8B/" rel="tag"># 推荐工程</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/contextual-bandit/" rel="prev" title="在生产环境的推荐系统中部署Contextual bandit (LinUCB)算法的经验和陷阱">
+      <i class="fa fa-chevron-left"></i> 在生产环境的推荐系统中部署Contextual bandit (LinUCB)算法的经验和陷阱
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/multi-task-learning/" rel="next" title="多任务学习算法在推荐系统中的应用">
+      多任务学习算法在推荐系统中的应用 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">1 系统架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E5%8F%AC%E5%9B%9E"><span class="nav-number">2.</span> <span class="nav-text">2 召回</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E5%8D%8F%E5%90%8C%E8%BF%87%E6%BB%A4"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 协同过滤</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E5%85%B4%E8%B6%A3%E6%A0%87%E7%AD%BE"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 兴趣标签</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-%E5%90%91%E9%87%8F%E5%8F%AC%E5%9B%9E"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 向量召回</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-%E7%83%AD%E9%97%A8%E5%8F%AC%E5%9B%9E"><span class="nav-number">2.4.</span> <span class="nav-text">2.4 热门召回</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%8E%92%E5%BA%8F"><span class="nav-number">3.</span> <span class="nav-text">3. 排序</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-%E7%89%B9%E5%BE%81%E5%B7%A5%E7%A8%8B"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 特征工程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-%E6%A8%A1%E5%9E%8B%E8%AE%AD%E7%BB%83"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 模型训练</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 模型部署</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E6%8E%A8%E8%8D%90%E6%9C%8D%E5%8A%A1"><span class="nav-number">4.</span> <span class="nav-text">4. 推荐服务</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">55</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.linkedin.com/in/%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169/" title="LinkedIn → https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169&#x2F;" rel="noopener" target="_blank"><i class="fab fa-linkedin fa-fw"></i>LinkedIn</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fa fa-book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fa fa-blog fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab fa-blogger fa-fw"></i>博客园</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://yang_xu_dong.gitee.io/" title="https:&#x2F;&#x2F;yang_xu_dong.gitee.io" rel="noopener" target="_blank">国内镜像</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">334k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">5:03</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
