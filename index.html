@@ -275,6 +275,347 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/rec-multi-modal/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/rec-multi-modal/" class="post-title-link" itemprop="url">视觉多模态推荐算法综述</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-06-13 11:58:22" itemprop="dateCreated datePublished" datetime="2022-06-13T11:58:22+08:00">2022-06-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-04 12:00:27" itemprop="dateModified" datetime="2022-09-04T12:00:27+08:00">2022-09-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/rec-multi-modal/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/rec-multi-modal/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>9.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>9 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>推荐系统学习用户与物品的交互模式，并据此给用户推荐物品。 然而，用户与物品的交互行为数据是很稀疏的，也就是说，观察到的”用户-物品”交互往往只占可能的互动的5%以下（User-Item矩阵的稀疏度）。缓解数据稀疏的一个有希望的方向是利用辅助信息，这些信息可能编码了关于用户如何与物品交互的额外线索。这类数据（被称为模态）的例子有：社交网络、物品的描述性文本、物品的图像、视频等。那么如何利用这些额外的数据为推荐系统提供更好的性能呢？多模态推荐模型提供了一个有希望的方向。</p>
+<p>推荐系统通常还会面临冷启动问题的挑战，比如新发布的物品该如何推荐给用户。物品的内容信息，尤其是图片、视频这些视觉信息为缓解物品冷启动问题提供了一个可行的思路。关于推荐冷启动问题的更多解决方案请查看《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/475117993">冷启动推荐模型DropoutNet深度解析与改进</a>》。那么该如何利用物品的视觉信息来构建推荐算法模型呢？</p>
+<p>文本总结了一些常用的视觉多模态推荐模型的大致思路，在此之前，让我们先来了解一些基础的推荐算法。<br></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/rec-multi-modal/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/feature-engineer-tutorial/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/feature-engineer-tutorial/" class="post-title-link" itemprop="url">1天学会开发工业级推荐系统的特征工程代码：保姆级教程</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-06-05 11:21:50" itemprop="dateCreated datePublished" datetime="2022-06-05T11:21:50+08:00">2022-06-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-04 11:28:22" itemprop="dateModified" datetime="2022-09-04T11:28:22+08:00">2022-09-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/feature-engineer-tutorial/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/feature-engineer-tutorial/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>21k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>19 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="一、推荐算法为何要精做特征工程"><a href="#一、推荐算法为何要精做特征工程" class="headerlink" title="一、推荐算法为何要精做特征工程"></a>一、推荐算法为何要精做特征工程</h2><p>机器学习工作流就好比是一个厨师做菜的过程，简单来说，清洗食材对应了清洗数据，食材的去皮、切片和搭配就对于了特征工程的过程，食物的烹饪对应了模型训练的过程。如果你觉得数据清洗和特征工程不重要，莫非是你想吃一份没有经过清洗、去皮、切片、调料，而直接把原始的带着泥沙的蔬菜瓜果放在大锅里乱炖出来的“菜”? 先不说卫生的问题，能不能弄熟了都是个问题。</p>
+<p>在完整的机器学习流水线中，特征工程通常占据了数据科学家很大一部分的精力，是因为特征工程能够显著提升模型性能，高质量的特征能够大大简化模型复杂度，让模型变得高效且易理解、易维护。在机器学习领域，“Garbage In, Garbage Out”是业界的共识，对于一个机器学习问题，数据和特征决定了机器学习的上限，而模型和算法只是逼近这个上限而已。</p>
+<p>与计算机视觉、语音、NLP等领域不同，推荐算法模型很大程度上依赖人工特征工程为其提供输入数据，这是因为推荐算法需要处理的通常是结构化的关系型数据，这些原始数据一般需要经过清洗、采样、变换、统计、编码等方式生成最终的特征数据，模型本身无法直接完成所有这些加工逻辑。关于工业级推荐系统中如何做特征工程，请参考这篇文章《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/518308463">工业级推荐系统中的特征工程</a>》。</p>
+<p>上面这篇文章从一个较概括和抽象的角度详细介绍了工业级推荐系统中如何做特征工程，但并未提及代码实现方面的内容。本文的目标就是帮助读者理解并掌握这些特征工程方法在真实的生成环境中是如何实现的。本文从一个公开数据集出发，详细讲解一个工业级推荐系统的特征工程代码是如何一步一步开发出来的。开发语言为MaxCompute SQL，非常类似于Hive/Spark SQL。</p>
+<p>查看本文完整代码：<a target="_blank" rel="noopener" href="https://github.com/yangxudong/feature_engineering">Github</a><br></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/feature-engineer-tutorial/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/feature-engineer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/feature-engineer/" class="post-title-link" itemprop="url">工业级推荐算法中的特征工程</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-05-22 10:39:36" itemprop="dateCreated datePublished" datetime="2022-05-22T10:39:36+08:00">2022-05-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-04 10:51:30" itemprop="dateModified" datetime="2022-09-04T10:51:30+08:00">2022-09-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/feature-engineer/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/feature-engineer/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><strong>摘要</strong>：深度学习时期，与CV、语音、NLP领域不同，搜推广场景下特征工程仍然对业务效果具有很大的影响，并且占据了算法工程师的很多精力。数据决定了效果的上限，算法只能决定逼近上限的程度，而特征工程则是数据与算法之间的桥梁。本文尝试总结一些在推荐场景下做特征工程的常用套路，包括常用的特征变换算子、Bin-Counting技术以及特征查漏补缺的方法。</p>
+<p><strong>读者受益</strong></p>
+<ol>
+<li>深入理解常用的特征变换操作。</li>
+<li>了解优质特征工程的判断标准。</li>
+<li>掌握推荐场景下构建高质量特征的一般方法。</li>
+</ol>
+<h2 id="一、为什么要精做特征工程"><a href="#一、为什么要精做特征工程" class="headerlink" title="一、为什么要精做特征工程"></a>一、为什么要精做特征工程</h2><p>在完整的机器学习流水线中，特征工程通常占据了数据科学家很大一部分的精力，一方面是因为特征工程能够显著提升模型性能，高质量的特征能够大大简化模型复杂度，让模型变得高效且易理解、易维护。在机器学习领域，“Garbage In, Garbage Out”是业界的共识，对于一个机器学习问题，数据和特征决定了机器学习的上限，而模型和算法只是逼近这个上限而已。</p>
+<p><img src="https://pic1.zhimg.com/80/v2-a429bf4612cb115e25ba39d6c41807bc_1440w.jpg" alt><br></p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/feature-engineer/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/why-rec-model-fail/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -985,343 +1326,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/web-risk-detect/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/my_carton.png">
-      <meta itemprop="name" content="yangxudong">
-      <meta itemprop="description" content="勤劳的小毛驴">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="小毛驴">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/web-risk-detect/" class="post-title-link" itemprop="url">网页文本内容安全风险识别算法</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2020-12-07 14:21:33 / 修改时间：14:26:09" itemprop="dateCreated datePublished" datetime="2020-12-07T14:21:33+08:00">2020-12-07</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E5%86%85%E5%AE%B9%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">内容安全</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/web-risk-detect/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/web-risk-detect/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>6.2k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>6 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="背景介绍"><a href="#背景介绍" class="headerlink" title="背景介绍"></a>背景介绍</h2><p>随着互联网扁平化的发展，内容信息的分发和获取比以往更加便利，这也大大方便了以色情、赌博、非法政治言论、违禁药品买卖等为代表的违规信息的快速传播。这类信息的传播会造成难以估计的社会影响，甚至有可能影响国家的安定和谐。网站所有者可以随意更改网站页面的内容，发布任意形式的信息。论坛、博客、社交产品等web 2.0的网站可以让普通用户随意发布UGC内容。安全防控做得不到位的网站页面内容还可能被黑客随意篡改，甚至安装木马病毒。综上，网站页面内容的生成方式多种多样，内容发布者也是形形色色，其中就会有不少不法分子利用网络传播违规信息以达到非法牟利，甚至控制网民意识形态，颠覆国家政权的目的。</p>
-<p>为了净化云平台以及维护网络环境的安全和稳定，对云上网站中存在的各类违规内容进行治理成为了意义重大又迫在眉睫的问题。本文主要介绍如何通过深度学习算法检测网页中是否包含了特定类型的违规内容。<br></p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/web-risk-detect/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/rule-learning/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/my_carton.png">
-      <meta itemprop="name" content="yangxudong">
-      <meta itemprop="description" content="勤劳的小毛驴">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="小毛驴">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/rule-learning/" class="post-title-link" itemprop="url">关键词规则挖掘在商品合规风险识别中的应用</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2020-12-04 23:04:31" itemprop="dateCreated datePublished" datetime="2020-12-04T23:04:31+08:00">2020-12-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-12-07 14:26:30" itemprop="dateModified" datetime="2020-12-07T14:26:30+08:00">2020-12-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E5%86%85%E5%AE%B9%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">内容安全</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/rule-learning/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/rule-learning/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>12k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>11 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="一、背景概述"><a href="#一、背景概述" class="headerlink" title="一、背景概述"></a>一、背景概述</h2><p>合规服务业务是基于法律法规建立的信息安全保障机制，保障电商平台的合规经营。商品合规风险指商家未能遵循国家有关法律法规、监管要求或平台制定的经营规则，在平台发布了禁止或限制销售的商品或服务。从发布内容的维度看，违规风险内容主要分为危害国家安全、民生安全、公共安全和市场秩序四大块内容。其中，危害国家安全的违规商品内容包括非法政治、枪支弹药、管制器具、军警用品、暴恐分裂渗透等；危害民生安全的违规商品内容包括毒品、危险化学品、管制药品、管制医疗器械、保护动植物等；危害公共安全的违规商品内容包括色情、低俗、赌博、个人隐私、作弊造假等；违反市场秩序的违规商品内容包括诚信交易类、公序良俗类等。大类的风险类别共计30余种。</p>
-<p><img src="https://ftp.bmp.ovh/imgs/2020/02/a250bc02f66df2e4.jpg" alt></p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/rule-learning/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/similarity-search/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/my_carton.png">
-      <meta itemprop="name" content="yangxudong">
-      <meta itemprop="description" content="勤劳的小毛驴">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="小毛驴">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/similarity-search/" class="post-title-link" itemprop="url">相似检索在商品合规风险识别中的应用</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2020-12-04 22:46:55" itemprop="dateCreated datePublished" datetime="2020-12-04T22:46:55+08:00">2020-12-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-12-07 14:39:29" itemprop="dateModified" datetime="2020-12-07T14:39:29+08:00">2020-12-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">机器学习</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/%E5%86%85%E5%AE%B9%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">内容安全</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Valine：</span>
-    
-    <a title="valine" href="/similarity-search/#valine-comments" itemprop="discussionUrl">
-      <span class="post-comments-count valine-comment-count" data-xid="/similarity-search/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>9.6k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>9 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="一、背景概述"><a href="#一、背景概述" class="headerlink" title="一、背景概述"></a>一、背景概述</h2><p>合规服务业务是基于法律法规建立的信息安全保障机制，保障电商平台的合规经营。商品合规风险指商家未能遵循国家有关法律法规、监管要求或平台制定的经营规则，在平台发布了禁止或限制销售的商品或服务。从发布内容的维度看，违规风险内容主要分为危害国家安全、民生安全、公共安全和市场秩序四大块内容。其中，危害国家安全的违规商品内容包括非法政治、枪支弹药、管制器具、军警用品、暴恐分裂渗透等；危害民生安全的违规商品内容包括毒品、危险化学品、管制药品、管制医疗器械、保护动植物等；危害公共安全的违规商品内容包括色情、低俗、赌博、个人隐私、作弊造假等；违反市场秩序的违规商品内容包括诚信交易类、公序良俗类等。大类的风险类别共计30余种。</p>
-<p><img src="https://ftp.bmp.ovh/imgs/2020/02/a250bc02f66df2e4.jpg" alt></p>
-<p>坚守风险底线，为用户服务提供良好的制度保障，助力平台提供更简单、更友好的经营环境，保护消费者权益是商品合规业务的主要目标。在商品合规场景，内容维度的风险中文本违规占比约80%。通过商品标题文本的相似检索是发现新风险的有效手段之一。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/similarity-search/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1393,7 +1397,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">55</span>
+          <span class="site-state-item-count">58</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -1406,7 +1410,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-count">74</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -1484,12 +1488,12 @@
     <span class="post-meta-item-icon">
       <i class="fa fa-chart-area"></i>
     </span>
-    <span title="站点总字数">334k</span>
+    <span title="站点总字数">370k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="站点阅读时长">5:03</span>
+    <span title="站点阅读时长">5:37</span>
 </div>
 
         

@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>http://xudongyang.coding.me/rec-multi-modal/</loc>
+    <lastmod>2022-09-04</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/feature-engineer-tutorial/</loc>
+    <lastmod>2022-09-04</lastmod>
+  </url>
+  <url>
+    <loc>http://xudongyang.coding.me/feature-engineer/</loc>
+    <lastmod>2022-09-04</lastmod>
+  </url>
+  <url>
     <loc>http://xudongyang.coding.me/why-rec-model-fail/</loc>
     <lastmod>2022-09-03</lastmod>
   </url>

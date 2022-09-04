@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/my_carton.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/my_carton.png">
+  <link rel="mask-icon" href="/images/my_carton.png" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"xudongyang.coding.me","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="推荐系统学习用户与物品的交互模式，并据此给用户推荐物品。 然而，用户与物品的交互行为数据是很稀疏的，也就是说，观察到的”用户-物品”交互往往只占可能的互动的5%以下（User-Item矩阵的稀疏度）。缓解数据稀疏的一个有希望的方向是利用辅助信息，这些信息可能编码了关于用户如何与物品交互的额外线索。这类数据（被称为模态）的例子有：社交网络、物品的描述性文本、物品的图像、视频等。那么如何利用这些额外的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="视觉多模态推荐算法综述">
+<meta property="og:url" content="http://xudongyang.coding.me/rec-multi-modal/index.html">
+<meta property="og:site_name" content="小毛驴">
+<meta property="og:description" content="推荐系统学习用户与物品的交互模式，并据此给用户推荐物品。 然而，用户与物品的交互行为数据是很稀疏的，也就是说，观察到的”用户-物品”交互往往只占可能的互动的5%以下（User-Item矩阵的稀疏度）。缓解数据稀疏的一个有希望的方向是利用辅助信息，这些信息可能编码了关于用户如何与物品交互的额外线索。这类数据（被称为模态）的例子有：社交网络、物品的描述性文本、物品的图像、视频等。那么如何利用这些额外的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/explicit_vs_implicit.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_formulation.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_ui_relation.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/MF.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/MF_L.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/regularization.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_ui_bias.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/WMF.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/BPR.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/neural_collaborative_filter.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/VAE.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/ACF_ARCH.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/PinSage.png">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/AMR_perturbation.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/AMR.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/CMFB_framework.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/CMBF_feature_learning.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/cross-model-fusion-layer.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/news-images.jpg">
+<meta property="og:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/MM-Rec.jpg">
+<meta property="article:published_time" content="2022-06-13T03:58:22.000Z">
+<meta property="article:modified_time" content="2022-09-04T04:00:27.121Z">
+<meta property="article:author" content="yangxudong">
+<meta property="article:tag" content="深度学习">
+<meta property="article:tag" content="推荐算法">
+<meta property="article:tag" content="多模态">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/explicit_vs_implicit.jpg">
+
+<link rel="canonical" href="http://xudongyang.coding.me/rec-multi-modal/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>视觉多模态推荐算法综述 | 小毛驴</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="小毛驴" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">小毛驴</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Adventure may hurt you, but monotony will kill you.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-essays">
+
+    <a href="/categories/essays/" rel="section"><i class="fa fa-leaf fa-fw"></i>软技能</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://xudongyang.coding.me/rec-multi-modal/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/my_carton.png">
+      <meta itemprop="name" content="yangxudong">
+      <meta itemprop="description" content="勤劳的小毛驴">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="小毛驴">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          视觉多模态推荐算法综述
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-06-13 11:58:22" itemprop="dateCreated datePublished" datetime="2022-06-13T11:58:22+08:00">2022-06-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-09-04 12:00:27" itemprop="dateModified" datetime="2022-09-04T12:00:27+08:00">2022-09-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">推荐系统</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/rec-multi-modal/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/rec-multi-modal/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>9.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>9 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>推荐系统学习用户与物品的交互模式，并据此给用户推荐物品。 然而，用户与物品的交互行为数据是很稀疏的，也就是说，观察到的”用户-物品”交互往往只占可能的互动的5%以下（User-Item矩阵的稀疏度）。缓解数据稀疏的一个有希望的方向是利用辅助信息，这些信息可能编码了关于用户如何与物品交互的额外线索。这类数据（被称为模态）的例子有：社交网络、物品的描述性文本、物品的图像、视频等。那么如何利用这些额外的数据为推荐系统提供更好的性能呢？多模态推荐模型提供了一个有希望的方向。</p>
+<p>推荐系统通常还会面临冷启动问题的挑战，比如新发布的物品该如何推荐给用户。物品的内容信息，尤其是图片、视频这些视觉信息为缓解物品冷启动问题提供了一个可行的思路。关于推荐冷启动问题的更多解决方案请查看《<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/475117993">冷启动推荐模型DropoutNet深度解析与改进</a>》。那么该如何利用物品的视觉信息来构建推荐算法模型呢？</p>
+<p>文本总结了一些常用的视觉多模态推荐模型的大致思路，在此之前，让我们先来了解一些基础的推荐算法。<br><a id="more"></a></p>
+<h2 id="一、基础推荐算法"><a href="#一、基础推荐算法" class="headerlink" title="一、基础推荐算法"></a>一、基础推荐算法</h2><p>通常，推荐系统会收集用户的显式反馈和隐式反馈数据，作为输入给推荐算法的“原料”。推荐算法会基于这些数据构建模型学习用户与物品的交互模式，从而在未观察的数据上做出预测来完成后续物品的推荐。显式反馈包括评分、点赞、不喜欢等；隐式反馈是用户在系统上的其他行为，如点击、浏览时长、收藏、分享等。</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/explicit_vs_implicit.jpg" alt="explicit_vs_implicit"></p>
+<p>推荐问题通常被建模为两大类问题：</p>
+<ol>
+<li>Rating Prediction：算法预测给定的用户对给定的物品的偏好分，系统给用户推荐预测偏好分高的物品集；</li>
+<li>Ranking：给定用户的情况下，算法预测用户对不同物品偏好程度的偏序关系，根据偏序关系排列后续物品，推荐列表的Top K 物品集。</li>
+</ol>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_formulation.jpg" alt="rec_formulation"></p>
+<p>推荐算法通常可以分为三大类：</p>
+<ol>
+<li>协同过滤</li>
+<li>基于内容的推荐</li>
+<li>基于模型的推荐（混合推荐）</li>
+</ol>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_ui_relation.jpg" alt="rec_ui_relation"></p>
+<p>矩阵分解是一种常用的协同过滤推荐算法。偏好数据被表示为一个用户-项目矩阵，然后被分解为一组K维的用户和项目潜在因素(latent factors)。对用户u和项目i的预测是根据u和i的潜在因素的内积来估计的。这种表达方法(formulation)由于不同的损失函数而产生了一些变体。基于显性反馈的模型通常寻求最小化观察和预测评级之间的误差，如PMF。隐性反馈模型可以将观察结果解释为置信信号(confidence signal)（如WMF）或相对比较(relative comparisons)（如BPR）。</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/MF.jpg" alt="MF"></p>
+<p>在矩阵分解方法中预估潜在因子通过在观察到的评分数据（或隐式反馈数据）上最小化loss function来完成，如下图所示。<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/MF_L.jpg" alt="MF_L"></p>
+<p>由于数据稀疏性的问题，以及防止过拟合的需要，我们通常还会在损失函数上添加正则项。<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/regularization.jpg" alt="regularization"></p>
+<p>通常我们还需要考虑用户和物品的偏置，这是因为：</p>
+<ol>
+<li>用户有不同的评分标准（或活跃程度），有些人倾向于给高评分，有些人则对评分比较保守；另外，活跃用户的隐式反馈行为较多，不太活跃的用户（或者目的明确的用户）隐式反馈行为较少。</li>
+<li>物品的受欢迎程度也不同，有一些物品主要为高评分，另一些主要为低评分；“哈利波特”效应很好地说明了这一问题。</li>
+</ol>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/rec_ui_bias.jpg" alt="rec_ui_bias"></p>
+<p>由于隐式反馈数据有一定的不置信问题，比如未观察到的数据不能认为就一定是负样本，观察到的数据也可能是噪音数据。因此，带有权重的矩阵分解方法被提出，如下：<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/WMF.jpg" alt="WMF"></p>
+<p>建模为Ranking问题并学习偏序关系的一个典型算法是贝叶斯个性化排序（BPR），如下：<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/BPR.jpg" alt="BPR"></p>
+<p>神经协同过滤 NeuMF统一了MF和MLP在模拟用户偏好方面的优势</p>
+<ul>
+<li>MF通过内积（简单而有效）捕获了交互；</li>
+<li>MLP更有能力捕捉到复杂的用户意图。</li>
+</ul>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/neural_collaborative_filter.jpg" alt="neural_collaborative_filter"></p>
+<p>(双边）变量自编码器 VAE/BiVAE</p>
+<ul>
+<li>尊重动态数据的双向性质</li>
+<li>可以容纳双方的辅助数据</li>
+</ul>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/VAE.jpg" alt="VAE"></p>
+<h2 id="二、多模态推荐模型"><a href="#二、多模态推荐模型" class="headerlink" title="二、多模态推荐模型"></a>二、多模态推荐模型</h2><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>Image Modeling</th>
+<th>Explicit(MF or PMF)</th>
+<th>Implicit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pre-trained Embedding</td>
+<td>VMF, VPOI</td>
+<td>VBPR, ACF, NPR</td>
+</tr>
+<tr>
+<td>Convolutional Neural Nets</td>
+<td></td>
+<td>DVBPR, CKE, CDL,JRL</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="1-Visual-Bayesian-Personalized-Ranking-VBPR"><a href="#1-Visual-Bayesian-Personalized-Ranking-VBPR" class="headerlink" title="1. Visual Bayesian Personalized Ranking (VBPR)"></a>1. Visual Bayesian Personalized Ranking (VBPR)</h3><p>VBPR是BPR算法的扩展，相对于BPR算法增加了图像特征。BPR是一种基于建模用户对物品的偏序关系的矩阵分解方法。</p>
+<p>定义用户 $i$ 对物品 $j$ 的偏好分如下：</p>
+<script type="math/tex; mode=display">\hat{r}_{i,j} = \alpha + b_i + b_j + \mathbf{u}_i^T \mathbf{v}_j + \mathbf{p}_{i}^T(\mathbf{E} \times \mathbf{f}_j) + \mathbf{\Theta}^T \mathbf{f}_j</script><p>其中，</p>
+<ul>
+<li>$\alpha, b_i, b_j$ 为全局偏置，用户偏置和物品偏置；</li>
+<li>$\mathbf{u}_i \in \mathbb{R}^K$ 为用户隐向量；$\mathbf{v}_j \in \mathbb{R}^K$ 为物品隐向量；</li>
+<li>$\mathbf{f}_j \in \mathbb{R}^D$ 为物品的图像特征向量；</li>
+<li>$\mathbf{p}_i \in \mathbb{R}^Q$ 为用户的视觉偏好特征向量；$(\mathbf{E} \times \mathbf{f}_j) \in \mathbb{R}^Q$ 为物品的视觉表示向量，通过 $\mathbf{E} \in \mathbb{R}^{K \times D}$ 从特征空间投影到偏好空间（这里可以简单理解为维度调整）；</li>
+<li>$\mathbf{\Theta} \in \mathbb{R}^D$ 为全局视觉偏置向量；</li>
+</ul>
+<p>学习过程通过最小化负对数似然函数来完成：</p>
+<script type="math/tex; mode=display">\mathcal{L}(\mathbf{U,V,b,E,\Theta, P}|\lambda) = \sum_{(j >_i l) \in \mathbf{S}} \ln (1 + \exp\{-(\hat{r}_{i,j} - \hat{r}_{i,l})\}) + \frac{\lambda}{2} \sum_{i=1}^{N} (||\mathbf{u}_i||^2 + ||\mathbf{p}_i||^2) + \frac{\lambda}{2} \sum_{j=1}^{M} (b_j + ||\mathbf{v}_j||^2) + \frac{\lambda}{2} ||\mathbf{\Theta}||^2 + \frac{\lambda}{2} ||\mathbf{E}||^2_2</script><p>备注：全局偏置 $\alpha$ 和 用户偏置 $b_i$ 不影响物品的排序，所以从损失函数中移除。</p>
+<h3 id="2-Deep-Visual-Bayesian-Personalized-Ranking-DVBPR"><a href="#2-Deep-Visual-Bayesian-Personalized-Ranking-DVBPR" class="headerlink" title="2. Deep Visual Bayesian Personalized Ranking (DVBPR)"></a>2. Deep Visual Bayesian Personalized Ranking (DVBPR)</h3><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1711.02231">Visually-Aware Fashion Recommendation and Design with Generative Image Models</a></p>
+<p>定义用户 $i$ 对物品 $j$ 的偏好分如下： <script type="math/tex">\hat{r}_{i,j} = \alpha + b_i + \mathbf{p}_{i}^T \Phi(X_j)</script></p>
+<p>其中，$\Phi(\cdot)$ 表示提取图像特征的深度神经网络模型。相比于VBPR，商品偏置 $b_j$ 和 非视觉的隐向量被省略，因为作者通过实验发现这么做效果更好。</p>
+<p>损失函数：</p>
+<script type="math/tex; mode=display">\mathcal{L} = \sum_{(j >_i l) \in \mathbf{S}} \ln (1 + \exp\{-(\hat{r}_{i,j} - \hat{r}_{i,l})\}) +  \frac{\lambda}{2} ||\mathbf{p_i}||^2</script><p>备注：全局偏置 $\alpha$ 和 用户偏置 $b_i$ 不影响物品的排序，所以从损失函数中移除。</p>
+<h3 id="3-DeepStyle"><a href="#3-DeepStyle" class="headerlink" title="3. DeepStyle"></a>3. DeepStyle</h3><p>paper: <a target="_blank" rel="noopener" href="http://www.shuwu.name/sw/DeepStyle.pdf">DeepStyle: Learning User Preferences for Visual Recommendation (SIGIR’17)</a></p>
+<p>定义用户 $i$ 对物品 $j$ 的偏好分如下：</p>
+<script type="math/tex; mode=display">\hat{r}_{i,j} =  \mathbf{u}_{i}^T \left( E\Phi(X_j) -c_i+\mathbf{v}_i\right)</script><p>其中，$c_i$ 表示物品图像的类目信息，从图像特性中减去该项的目的是为了提取到更重要的风格信息。</p>
+<p>相比于VBPR，DeepStyle使用相同的用户隐向量来与图像特征和物品隐向量交互。</p>
+<h3 id="4-Visual-Matrix-Factorization-VMF"><a href="#4-Visual-Matrix-Factorization-VMF" class="headerlink" title="4. Visual Matrix Factorization (VMF)"></a>4. Visual Matrix Factorization (VMF)</h3><p>paper: Do “Also-Viewed” Products Help User Rating Prediction? (WWW’17)</p>
+<p>类似于VBPR，VMF定义用户 $i$ 对物品 $j$ 的偏好分如下：</p>
+<script type="math/tex; mode=display">\hat{r}_{i,j} = \mathbf{u}_i^T \mathbf{v}_j + \mathbf{p}_{i}^T(\mathbf{E} \times \mathbf{f}_j)</script><p>不同的是，学习通过最小化 MSE 而不是 BPR criteria:</p>
+<p>损失函数：</p>
+<script type="math/tex; mode=display">\mathcal{L}(U,V|\lambda) = \frac{1}{2}\sum_{i,j} (r_{i,j}-\hat{r}_{i,j}) +  \frac{\lambda}{2} ||\mathbf{u_i}||^2  +  \frac{\lambda}{2} ||\mathbf{v_i}||^2</script><h3 id="5-Attentive-Collaborative-Filtering-ACF"><a href="#5-Attentive-Collaborative-Filtering-ACF" class="headerlink" title="5. Attentive Collaborative Filtering (ACF)"></a>5. Attentive Collaborative Filtering (ACF)</h3><p>paper: <a target="_blank" rel="noopener" href="https://cseweb.ucsd.edu/classes/fa17/cse291-b/reading/Attentive%20Collaborative%20Filtering%20Multimedia%20Recommendation%20with%20Item-%20and%20Component-Level%20Attention.pdf">Attentive Collaborative Filtering: Multimedia Recommendation with item- and Component-Level Attention (SIGIR’17)</a></p>
+<p>ACF在建模用户的表示向量时，使用attention机制额外编码了用户的行为序列，其定义的用户 $i$ 对物品 $j$ 的偏好分如下：</p>
+<script type="math/tex; mode=display">\hat{R}_{ij}=\left( u_i + \sum_{l \in {\mathcal R}(i)}\alpha(i,l)p_l \right)^T v_j</script><p>其中，$u_i$和$v_j$分别是用户$i$和物品$j$的隐向量，${\mathcal R}(i)$是用户$i$交互过的物品集合，$p_l$是历史交互物品的隐向量，$\alpha(i,l)$是attention的权重。</p>
+<p>上述公式可以改写为：</p>
+<script type="math/tex; mode=display">\hat{R}_{ij}= \overbrace{u_i^T v_j}^{\text{latent factor model}} + \overbrace{\sum_{l \in {\mathcal R}(i)}\alpha(i,l)p_l^T v_j}^{\text{neighborhood model}}</script><p>ACF模型的网络结构如下：<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/ACF_ARCH.jpg" alt="ACF_ARCH"></p>
+<p>ACF模型使用了两个层级的Attention机制来编码用户的向量表示，分别是component-level和item-level。使用component-level的注意力机制的动机是认为用户对物品的不同component的兴趣度是不一样的，我们需要找出用户真正感兴趣的组件。item-level的注意力机制编码了用户对历史交互过的物品不同的兴趣程度。注意力权重的计算使用了2层的MLP，公式如下：</p>
+<script type="math/tex; mode=display">a(i,l)=w_1^T \phi(W_uu_i+W_vv_l+W_pp_l+W_x\bar{x}_l+b)+c</script><script type="math/tex; mode=display">\alpha(i,l)=\frac{exp(a(i,l))}{\sum_{n\in{\mathcal R}(i)}exp(a(i, n))}</script><p>其中，$\phi(x)=max(0,x)$为ReLU激活函数，$\bar{x}$是使用component-level的注意力机制得到的物品内容表示，编码了物品的视觉信息（如图像特征）。</p>
+<p>作者提出的物品的视觉组件主要有两种类型：</p>
+<ul>
+<li>图像的空间区域</li>
+<li>视频的帧</li>
+</ul>
+<h3 id="6-PinSage"><a href="#6-PinSage" class="headerlink" title="6. PinSage"></a>6. PinSage</h3><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1806.01973">Graph Convolutional Neural Networks for Web-Scale Recommender Systems (KDD’18)</a></p>
+<p>PinSage是基于随机游走的图卷积神经网络模型，它能够学习大规模图的节点embedding（稠密向量表示），这些节点embedding包含了物品的视觉特征。推荐结果可以通过在embedding空间中查找目标节点的近邻获得。</p>
+<p>关键创新点：</p>
+<ol>
+<li>即时更新的卷积操作（On-the-fly convolutions）</li>
+</ol>
+<p>传统的图卷积算法需要计算特征矩阵与全图Laplacian矩阵的幂，当图的规模非常巨大时该操作将变得不可行。PinSage通过从邻居采样并动态构建计算图的方法，可以高效地、局部地执行卷积操作。</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/PinSage.png" alt="PinSage"></p>
+<blockquote>
+<p>Example of computation graphs we dynamically construct for performing localized graph convolutions. Here we show three source nodes (at the top) for which we are generating embeddings. For each source node, we sample its neighbor nodes and we further sample neighbor nodes of each neighbor, i.e., here depth is 2. Between the layers are learnable aggregators parameterized by neural networks. Aggregators are shared across different computation graphs.</p>
+</blockquote>
+<ol>
+<li>通过随机游走构建卷积操作</li>
+</ol>
+<p>为了避免在所有邻居上执行卷积操作，PinSage通过采样的方法获取固定数量的邻居，在采样的过程中会考虑邻居的重要度（importance pooling）。</p>
+<ol>
+<li>基于MapReduce的高效推理</li>
+</ol>
+<p>通过上图的层次结构来设计“map-join-reduce”操作，避免重复计算。</p>
+<ol>
+<li>离线评估</li>
+</ol>
+<p>Pinterest data： Pin-board的二部图。</p>
+<p>输入特征包括：</p>
+<ul>
+<li>图像embedding: 通过state-of-the-art的CNN模型得到</li>
+<li>文本标注的embedding: 类Word2Vec模型获得</li>
+</ul>
+<p>评估指标：Recall、MRR（Mean Reciprocal Rank）</p>
+<h3 id="7-AMR"><a href="#7-AMR" class="headerlink" title="7. AMR"></a>7. AMR</h3><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1809.07062">Adversarial Training Towards Robust Multimedia Recommender System (IEEE’2020)</a></p>
+<p>作者提出现有的视觉多模态推荐模型不够鲁棒，在输入图像上添加一个小的人为噪音扰动（对抗样本）后，推荐列表的排序可能发生较大的改变，如下图所示。<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/AMR_perturbation.jpg" alt="AMR_perturbation"></p>
+<p>因此，作者借鉴视觉安全领域的思路提出了一种对抗训练的方式，来得到更加鲁棒和高效的推荐模型，并通过实验证明了对抗训练确实能够提高模型的效果。我们可以简单地认为对抗训练是一种特殊的数据增强方法。</p>
+<p>总体思路：AMR模型的训练过程可以理解为一个玩 <code>minimax</code> 游戏的过程，扰动噪音通过最大化VBPR的损失函数得到，而模型的参数通过最小化VBPR损失函数和对抗损失函数获得。类似于GAN模型的思路，通过这种方式强迫模型变得更加健壮。</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/AMR.jpg" alt="AMR"></p>
+<p>由于图像特征提取的模型通常与推荐模型是分开训练的，因此作者提出对抗扰动直接添加在提取出的图像表示（embedding）上。推荐模型的训练还是采用了VBPR的框架。</p>
+<p>定义用户 $u$ 对物品 $i$ 的偏好分如下：</p>
+<script type="math/tex; mode=display">\hat{y}_{ui}'=p_u^T \left(q_i+E\cdot(c_i+\Delta_i) \right)</script><p>其中，$\Delta_i$ 表示添加到图像embedding上的扰动噪音，其通过最大化BPR损失函数获得，如下：</p>
+<script type="math/tex; mode=display">\Delta^*=arg\underset{\Delta}{max} L_{BPR}'=arg\underset{\Delta}{max} \sum_{(u,i,j)\in {\mathcal D}}-ln\sigma(\hat{y}_{ui}'-\hat{y}_{uj}')</script><p>其中，$||\Delta_i|| \le \epsilon$，$\epsilon$ 是控制扰动量级的超参数。</p>
+<p>模型的参数通过优化下面的损失函数获得：</p>
+<script type="math/tex; mode=display">\begin{align}
+\Theta^* & = arg\underset{\Delta}{min} L_{BPR} + \lambda L_{BPR}' \\
+& = arg\underset{\Delta}{min} \sum_{(u,i,j)\in {\mathcal D}} -ln \sigma(\hat{y}_{ui}-\hat{y}_{uj}) -\lambda ln \sigma(\hat{y}_{ui}'-\hat{y}_{uj}') + \beta ||\Theta||^2
+\end{align}</script><p>其中，$\hat{y}_{ui}=p_u^T (q_i+E\cdot c_i)$ 为不加扰动噪音时用户对物品的偏好分；$\lambda$ 为控制对抗训练强度的超参数，当 $\lambda=0$ 时，AMR降级为VBPR；对抗损失 $L_{BPR}’$ 可以看作是一种特殊的正则项（adversarial regularizer）。</p>
+<p>源代码：<a target="_blank" rel="noopener" href="https://github.com/duxy-me/AMR">https://github.com/duxy-me/AMR</a></p>
+<h3 id="8-CausalRec"><a href="#8-CausalRec" class="headerlink" title="8. CausalRec"></a>8. CausalRec</h3><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2107.02390">CausalRec: Causal Inference for Visual Debiasing in Visually-Aware Recommendation (ACM MM’21)</a></p>
+<blockquote>
+<p>视觉偏差(visual bias)：用户对于视觉特征的注意力并不总是反映用户的真实偏好，用户可能会因为视觉满意而浏览某物品，但可能因其他关键属性不满足用户的真实需求而拒绝购买。</p>
+</blockquote>
+<p>在推荐系统中，视觉偏差与其他偏差，如位置偏差、选择偏差、热度偏差等，一同呼吁纠偏方法的应用。最近的研究显示，因果推断（causal inference）在移除嵌入在数据中的偏差方面展现出了很大的潜力。</p>
+<p>因果推断在移除视觉偏差上的原理和公式推导比较复杂，这里省略不表，直接给出CausalRec模型的学习过程。</p>
+<script type="math/tex; mode=display">\begin{align}
+M_{i,u} &= \sigma(\gamma_u^T \gamma_i) \\
+M_{i,v,u} &= \sigma(\gamma_u^T (\gamma_i \circ E\phi(V_i))) \\
+N_{v,u} &= \sigma(\theta_u^T E\phi(V_i)) \\
+Y_{i,v,u} &= M_{i,u} \cdot M_{i,v,u} \cdot N_{v,u}
+\end{align}</script><p>其中，$\circ$ 表示Hadamard积，即element-wise的向量乘法；$\gamma_u,\gamma_i$ 分别表示用户、物品的隐向量；$\theta_u$ 是用户的视觉偏好向量，可以与$\gamma_u$相同；$V_i$为视觉特征向量；$\sigma$ 为sigmoid函数。</p>
+<p>采用多任务学习范式来训练模型，损失函数为：</p>
+<script type="math/tex; mode=display">l=l_{rec}(Y_{i,v,u}) + l_{rec}(N_{v,u}) + l_{rec}(M_{i,u}M_{i,v,u})</script><p>其中，$l_{rec}$为BPR损失函数:</p>
+<script type="math/tex; mode=display">l_{rec}(\hat{Y})=\sum_{u,i,j\in \mathcal{D}} -ln \sigma(\hat{y}_{ui}-\hat{y}_{uj}) + \lambda ||\Theta||_2^2</script><h3 id="9-CMBF"><a href="#9-CMBF" class="headerlink" title="9. CMBF"></a>9. CMBF</h3><p>paper: <a target="_blank" rel="noopener" href="https://www.mdpi.com/1424-8220/21/16/5275">CMBF: Cross-Modal-Based Fusion Recommendation Algorithm</a></p>
+<p>CMBF是一个能够捕获多个模态之间的交叉信息的模型，它能够缓解数据稀疏的问题，对冷启动物品比较友好。CMBF的模型的框架如下：</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/CMFB_framework.jpg" alt="CMFB_framework"></p>
+<p>CMBF主要有4个模块：</p>
+<ol>
+<li>预处理模块：提取图片和文本特征</li>
+<li>单模态学习模块：基于Transformer学习图像、文本的语义特征</li>
+<li>跨模态融合模块：学习两个模态之间的交叉特性</li>
+<li>输出模块：获取高阶特征并预测结果</li>
+</ol>
+<p>视觉特征提取模块通常是一个CNN-based的模型，它获取到图像的CNN Layer之后的特征，保留多个CNN filter的结果，以便后续接入transformer模块。</p>
+<p>文本特征为多个其他常用特征的拼接，包括数组特征、单值类别特征、多值类别特征，每个特征需要转换为相同维度的embedding，以便接入后续的transformer模块，具体操作如下：</p>
+<script type="math/tex; mode=display">v_i= \begin{cases}
+w_ix_i, & \text{for numerical features} \\
+W_ix_i, & \text{for single-value categorical features} \\
+\frac{1}{Q}W_ix_i, & \text{for multi-value categorical features}
+\end{cases}</script><p>单模块学习模块采用标准的transformer结构，如下：<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/CMBF_feature_learning.jpg" alt="CMBF_feature_learning"></p>
+<p>跨模态融合模块使用了一个交叉attention的结构，如下：</p>
+<p><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/cross-model-fusion-layer.jpg" alt="cross-model-fusion-layer"></p>
+<h3 id="10-MM-Rec"><a href="#10-MM-Rec" class="headerlink" title="10. MM-Rec"></a>10. MM-Rec</h3><p>paper: <a target="_blank" rel="noopener" href="https://arxiv.org/pdf/2104.07407.pdf">MM-Rec: Multimodal News Recommendation</a></p>
+<p>有些业务场景物品的图像和文本信息彼此之间有较强的关联性，比如，新闻的标题和封面图、商品的标题和图片等。<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/news-images.jpg" alt="news-images"></p>
+<p>用户点击查看物品不仅仅因为对物品的文本描述信息（标题等）感兴趣，也可能是被物品的图像所吸引，因此显式建模图像和文本，可以得到更好的图像特征表示和文本特征表示。MM-Rec模型就是一种这样的模型。<br><img src="https://cdn.jsdelivr.net/gh/yangxudong/blogimg@master/rec/MM-Rec.jpg" alt="MM-Rec"></p>
+<p>MM-Rec的模型结构主要包括三个重要组件： 多模态编码器（Multimodal Encoder）、基于候选感知跨模态注意力机制的用户表示生成模块、目标预测模块。</p>
+<p>a) 多模态编码器（Multimodal Encoder）</p>
+<p>由于图像的不同区域有不同的信息量，MM-Rec首先使用目标检测的预训练模型（Mask-RCNN）从原始图像中提取兴趣区域（ROI, region of interest）序列，然后使用ResNet-50模型提取每个POI的特征向量，得到图像特征序列：$[e_1^p,e_2^p,\cdots,e_K^p]$。文本通过分词得到token序列。</p>
+<p>使用预训练的视觉语言模型ViLBERT来捕捉文本与图像之间的相关关系，从而得到ROI与token的特征表示向量。接着，使用注意力机制把POI特征序列聚合为图像embedding（$r^p$）；同样使用注意力机制把token的特征序列聚合为文本的embedding（$r^t$）。</p>
+<p>b) 基于候选感知跨模态注意力机制的用户表示生成模块</p>
+<p>这里的思路类似于推荐的DIN模型，用户的特征表示基于用户的历史点击行为得到。在候选物品给定的情况下，不是每一个用户历史点击过的物品都对当前候选物品是否可能被点击有相同的贡献，因此，MM-Rec采样了Candidate-aware Attention的方式来聚合用户的历史行为物品的图像特征和文本特征，并且使用了跨模态的attention方式，包括文本到文本、文本到图像、图像到图像、图像到文本四个维度的attention。最后，通过聚合4个层面的attention结果得到用户的表示向量。</p>
+<p>c) 目标预测模块</p>
+<p>常规的负采样和交叉熵损失函数。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3460231.3473324">Multi-Modal Recommender Systems: Hands-On Exploration</a></li>
+</ul>
+<p>原文链接：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/525398305">https://zhuanlan.zhihu.com/p/525398305</a></p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div></div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="yangxudong 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="yangxudong 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" rel="tag"># 深度学习</a>
+              <a href="/tags/%E6%8E%A8%E8%8D%90%E7%AE%97%E6%B3%95/" rel="tag"># 推荐算法</a>
+              <a href="/tags/%E5%A4%9A%E6%A8%A1%E6%80%81/" rel="tag"># 多模态</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/feature-engineer-tutorial/" rel="prev" title="1天学会开发工业级推荐系统的特征工程代码：保姆级教程">
+      <i class="fa fa-chevron-left"></i> 1天学会开发工业级推荐系统的特征工程代码：保姆级教程
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/xgboost/" rel="next" title="全网最浅显易懂的GBDT(xgboost)算法原理深入剖析">
+      全网最浅显易懂的GBDT(xgboost)算法原理深入剖析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E5%9F%BA%E7%A1%80%E6%8E%A8%E8%8D%90%E7%AE%97%E6%B3%95"><span class="nav-number">1.</span> <span class="nav-text">一、基础推荐算法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81%E5%A4%9A%E6%A8%A1%E6%80%81%E6%8E%A8%E8%8D%90%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.</span> <span class="nav-text">二、多模态推荐模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-Visual-Bayesian-Personalized-Ranking-VBPR"><span class="nav-number">2.1.</span> <span class="nav-text">1. Visual Bayesian Personalized Ranking (VBPR)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Deep-Visual-Bayesian-Personalized-Ranking-DVBPR"><span class="nav-number">2.2.</span> <span class="nav-text">2. Deep Visual Bayesian Personalized Ranking (DVBPR)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-DeepStyle"><span class="nav-number">2.3.</span> <span class="nav-text">3. DeepStyle</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-Visual-Matrix-Factorization-VMF"><span class="nav-number">2.4.</span> <span class="nav-text">4. Visual Matrix Factorization (VMF)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-Attentive-Collaborative-Filtering-ACF"><span class="nav-number">2.5.</span> <span class="nav-text">5. Attentive Collaborative Filtering (ACF)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-PinSage"><span class="nav-number">2.6.</span> <span class="nav-text">6. PinSage</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-AMR"><span class="nav-number">2.7.</span> <span class="nav-text">7. AMR</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-CausalRec"><span class="nav-number">2.8.</span> <span class="nav-text">8. CausalRec</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-CMBF"><span class="nav-number">2.9.</span> <span class="nav-text">9. CMBF</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-MM-Rec"><span class="nav-number">2.10.</span> <span class="nav-text">10. MM-Rec</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">3.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yangxudong"
+      src="/images/my_carton.png">
+  <p class="site-author-name" itemprop="name">yangxudong</p>
+  <div class="site-description" itemprop="description">勤劳的小毛驴</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">58</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">74</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yangxudong" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yangxudongsuda@gmail.com" title="E-Mail → mailto:yangxudongsuda@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/u/1192649764" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;u&#x2F;1192649764" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://plus.google.com/u/0/115853952463021385464" title="Google → https:&#x2F;&#x2F;plus.google.com&#x2F;u&#x2F;0&#x2F;115853952463021385464" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>Google</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.linkedin.com/in/%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169/" title="LinkedIn → https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;%E6%97%AD%E4%B8%9C-%E6%9D%A8-755131169&#x2F;" rel="noopener" target="_blank"><i class="fab fa-linkedin fa-fw"></i>LinkedIn</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.jianshu.com/users/4e1990280df6/latest_articles" title="简书 → http:&#x2F;&#x2F;www.jianshu.com&#x2F;users&#x2F;4e1990280df6&#x2F;latest_articles" rel="noopener" target="_blank"><i class="fa fa-book fa-fw"></i>简书</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://zhuanlan.zhihu.com/yangxudong" title="知乎 → https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>知乎</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://blog.csdn.net/yangxudong" title="CSDN → http:&#x2F;&#x2F;blog.csdn.net&#x2F;yangxudong" rel="noopener" target="_blank"><i class="fa fa-blog fa-fw"></i>CSDN</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.cnblogs.com/yangxudong/" title="博客园 → http:&#x2F;&#x2F;www.cnblogs.com&#x2F;yangxudong&#x2F;" rel="noopener" target="_blank"><i class="fab fa-blogger fa-fw"></i>博客园</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://yang_xu_dong.gitee.io/" title="https:&#x2F;&#x2F;yang_xu_dong.gitee.io" rel="noopener" target="_blank">国内镜像</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yangxudong</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">370k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">5:37</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : true,
+      notify     : true,
+      appId      : 'bYp6b0sgetOuSC5AAozB3yNN-gzGzoHsz',
+      appKey     : 'tGnUPDp3vyWfTglwVpttySAy',
+      placeholder: "快快献上你的评论～",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
